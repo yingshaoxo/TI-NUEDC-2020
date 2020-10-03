@@ -18,6 +18,7 @@
 #define ads1292r_h
 
 #include "Arduino.h"
+#include "pins_energia.h"
 
 #define CONFIG_SPI_MASTER_DUMMY 0xFF
 
@@ -41,10 +42,10 @@
  MISO       P3.1 
  SCK        P3.2 
 */
-const int ADS1292_PWDN_PIN = P3_3; // the reset pin
-const int ADS1292_START_PIN = P3_4;
-const int ADS1292_DRDY_PIN = P3_5;
-const int ADS1292_CS_PIN = P3_6;
+const int ADS1292_PWDN_PIN = P6_0; // the reset pin
+const int ADS1292_START_PIN = P6_1;
+const int ADS1292_DRDY_PIN = P6_2;
+const int ADS1292_CS_PIN = P6_3;
 
 //register address
 #define ADS1292_REG_ID 0x00

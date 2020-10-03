@@ -1,4 +1,14 @@
 {
+    "python.autoComplete.extraPaths": [
+        "/home/yingshaoxo/.vscode/extensions/rt-thread.rt-thread-micropython-1.0.7/microExamples/code-completion"
+    ],
+    "python.linting.pylintArgs": [
+        "--init-hook",
+        "import sys; sys.path.append('/home/yingshaoxo/.vscode/extensions/rt-thread.rt-thread-micropython-1.0.7/microExamples/code-completion')"
+    ],
+    "files.associations": {
+        ".mpyproject.json": "jsonc"
+    },
     "MicroPython.executeButton": [
         {
             "text": "▶",
@@ -16,8 +26,5 @@
             "command": "extension.execute",
             "priority": 4
         }
-    ],
-    "files.associations": {
-        "*.cpp1": "cpp"
-    }
+    ]
 }
