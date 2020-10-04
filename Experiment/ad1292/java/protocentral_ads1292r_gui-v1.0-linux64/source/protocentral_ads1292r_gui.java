@@ -1,30 +1,25 @@
+import static javax.swing.JOptionPane.ERROR_MESSAGE;
+import static javax.swing.JOptionPane.showMessageDialog;
+
+import java.awt.Font;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
+
+import g4p_controls.*;
+import grafica.*;
 import processing.core.*;
 import processing.data.*;
 import processing.event.*;
 import processing.opengl.*;
-
-import g4p_controls.*;
 import processing.serial.*;
-import grafica.*;
-import java.awt.*;
-import javax.swing.*;
-import static javax.swing.JOptionPane.*;
-import javax.swing.JFileChooser;
-import java.io.FileWriter;
-import java.io.BufferedWriter;
-import java.util.Date;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.math.*;
-
-import java.util.HashMap;
-import java.util.ArrayList;
-import java.io.File;
-import java.io.BufferedReader;
-import java.io.PrintWriter;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.IOException;
 
 public class protocentral_ads1292r_gui extends PApplet {
 
