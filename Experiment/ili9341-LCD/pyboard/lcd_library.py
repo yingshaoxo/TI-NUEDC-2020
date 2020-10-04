@@ -33,7 +33,24 @@ ORANGE = (31, 39, 0)        # 255, 165,   0
 GREENYELLOW = (18, 63, 4)        # 173, 255,  47
 
 
-# Constants
+# Pins
+# rx x10 <--> tx P3_3
+# tx x9  <--> rx P3_4
+
+Pin_SCK = "X6"
+Pin_MISO = "X7"
+Pin_MOSI = "X8"
+
+Pin_DC = "Y11"
+Pin_RST = "Y10"
+Pin_CS = "Y12"
+
+
+"""
+# just a note here:
+SPI(1) : (NSS, SCK, MISO, MOSI) = (X5, X6, X7, X8) = (PA4, PA5, PA6, PA7)
+SPI(2) : (NSS, SCK, MISO, MOSI) = (Y5, Y6, Y7, Y8) = (PB12, PB13, PB14, PB15)
+"""
 
 #   Miscelleanous
 DEFAULT_BAUDRATE = const(42000000)
@@ -112,7 +129,7 @@ micropython.alloc_emergency_exception_buf(100)
 class ILI(object):
 
     # def __init__(self, cs = '22', dc = '21', rst = None, bl = None,
-    def __init__(self, cs='Y12', dc='Y11', rst='Y10', bl=None,
+    def __init__(self, cs=Pin_CS, dc=Pin_DC, rst=Pin_RST, bl=None,
                  port=1, baud=DEFAULT_BAUDRATE, portrait=True):
         """ Initialize ILI class. """
         if cs is None or dc is None:
@@ -314,7 +331,7 @@ class ILI(object):
 
 
 class MyLCD(ILI):
-    def __init__(self, cs='Y12', dc='Y11', rst='Y10', bl=None,
+    def __init__(self, cs=Pin_CS, dc=Pin_DC, rst=Pin_RST, bl=None,
                  port=1, baud=DEFAULT_BAUDRATE, portrait=True):
         super().__init__(cs=cs, dc=dc, rst=rst, bl=bl,
                          port=port, baud=baud, portrait=portrait)

@@ -23,15 +23,14 @@ def get_a_number(min_value, max_value):
     return random.randint(min_value, max_value)
 
 
-LCD.drawLine(0,0, 320, 120, RED)
-#last_w = 0
-#last_h = 0
-#for w in range(width):
-#    for h in range(height):
-#        if (w % 10 == 0 and h % 10):
-#            LCD.drawLine(last_w, last_h, w, h, RED)
-#            last_w = w
-#            last_h = h
+last_w = 0
+last_h = 0
+for w in range(width):
+    for h in range(height):
+        if (w % 10 == 0 and h % 10):
+            LCD.drawLine(last_w, last_h, w, h, RED)
+            last_w = w
+            last_h = h
 
 
 print("Done")

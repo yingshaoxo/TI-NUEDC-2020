@@ -16,9 +16,5 @@
             "command": "extension.execute",
             "priority": 4
         }
-    ],
-    "files.associations": {
-        "*.cpp1": "cpp",
-        "ADS1292.C": "cpp"
-    }
+    ]
 }
