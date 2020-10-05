@@ -5,83 +5,99 @@ ls -l /dev/ttyUSB0
 sudo usermod -a -G uucp yingshaoxo
 sudo chmod a+rw /dev/ttyUSB0
 """
+import plotly.graph_objects as go
 import pandas as pd
 import time
 import serial
 import binascii
 from time import sleep
 from struct import pack, unpack
+import numpy as np
 
 
-def int_to_byte(integer):
-    hex_string = '{:02x}'.format(integer)
-    a_byte = binascii.unhexlify(hex_string)
-    return a_byte
+import dash
+from dash.dependencies import Output, Input
+import dash_core_components as dcc
+import dash_html_components as html
+import plotly
+import random
+import plotly.graph_objs as go
+from collections import deque
+
+import threading
+
+X = deque(maxlen=1000)
+X.append(1)
+
+Y = deque(maxlen=1000)
+Y.append(1)
+
+app = dash.Dash(__name__)
+
+app.layout = html.Div(
+    [
+        dcc.Graph(id='live-graph', animate=True),
+        dcc.Interval(
+            id='graph-update',
+            interval=1000,
+            n_intervals=0
+        ),
+    ]
+)
 
 
-def byte_to_int(a_byte):
-    hex_string = binascii.hexlify(a_byte)
-    integer = int(hex_string, 16)
-    return integer
+@app.callback(
+    Output('live-graph', 'figure'),
+    [Input('graph-update', 'n_intervals')]
+)
+def update_graph_scatter(n):
+    data = plotly.graph_objs.Scatter(
+        x=list(X),
+        y=list(Y),
+        name='Scatter',
+        mode='lines+markers'
+    )
+
+    return {'data': [data],
+            'layout': go.Layout(xaxis=dict(range=[min(X), max(X)]), yaxis=dict(range=[min(Y), max(Y)]),)}
 
 
-def byte_to_string(a_byte, length=2):
-    return format(byte_to_int(a_byte), "02X").zfill(length)
+the_thread = threading.Thread(target=app.run_server, args=())
+the_thread.start()
 
 
 # ser = serial.Serial('/dev/ttyACM1', 115200)  # open serial port
 ser = serial.Serial('COM4', 115200)  # open serial port
 print(ser.name)         # check which port was really used
 
-ser.
-exit()
-
-
-myDataFrame = pd.DataFrame(columns=['ecg', "a", "b1", "b2", "c1", "c2", "c3",
-                                    "c4", "hear_rate", 'ECG', "A", "B1", "B2", "C1", "C2", "C3", "C4", "HEAR_RATE", "float_c", "float_c1", "float_c2"])
-
-i = 0
+show = False
+index = 0
 while 1:
-    i += 1
-    if i > 5000:
-        myDataFrame.to_excel("samples.xlsx")
-        break
-        i = 0
+    index += 1
+    if (index > 10000000):
+        index = 0
     if ser.readable():
-        the_bytes = ser.readline()
-        if (len(the_bytes) == 14):
-            # print(str(ubinascii.hexlify(bytes_)))
+        heading1 = ser.read(1)
+        if heading1.hex() == "0a":
+            if ser.readable():
+                heading2 = ser.read(1)
+                if heading2.hex() == "fa":
+                    if ser.readable():
+                        data_length_bytes = ser.read(2)
+                        data_length = unpack("H", data_length_bytes)[0]
+                        # print(data_length)
+                        if ser.readable():
+                            type_bytes = ser.read(1)
+                            type_ = unpack("B", type_bytes)[0]
+                            if type_ == 2:
+                                if ser.readable():
+                                    data_bytes = ser.read(data_length)
+                                    data = unpack("<iiB", data_bytes)
+                                    ecg, resp, heart_rate = data
 
-            ecg = unpack("h", the_bytes[5:7])
-            a = unpack("i", the_bytes[7:11])
-            b1 = unpack("h", the_bytes[7:9])
-            b2 = unpack("h", the_bytes[9:11])
-            c1 = unpack("b", the_bytes[7:8])
-            c2 = unpack("b", the_bytes[8:9])
-            c3 = unpack("b", the_bytes[9:10])
-            c4 = unpack("b", the_bytes[10:11])
-            heart_rate = unpack("b", the_bytes[11:12])
+                                    X.append(index)
+                                    Y.append(ecg)
 
-            ECG = unpack("H", the_bytes[5:7])
-            A = unpack("I", the_bytes[7:11])
-            B1 = unpack("H", the_bytes[7:9])
-            B2 = unpack("H", the_bytes[9:11])
-            C1 = unpack("B", the_bytes[7:8])
-            C2 = unpack("B", the_bytes[8:9])
-            C3 = unpack("B", the_bytes[9:10])
-            C4 = unpack("B", the_bytes[10:11])
-            HEART_RATE = unpack("B", the_bytes[11:12])
-
-            float_c = unpack("f", the_bytes[7:11])
-            float_c1 = unpack("e", the_bytes[7:9])
-            float_c2 = unpack("e", the_bytes[9:11])
-
-            #seperator = "____"
-            # print(ecg, seperator, a, seperator, b1, b2, seperator, c1,
-            #      c2, c3, c4, seperator, ecg, heart_rate, "##########", ECG, seperator, A, seperator, B1, B2, seperator, C1, C2, C3, C4, "########", float_c, float_c1, float_c2)
-
-            to_append = [ecg, a, b1, b2, c1, c2, c3, c4, heart_rate,
-                         ECG, A, B1, B2, C1, C2, C3, C4, HEART_RATE, float_c, float_c1, float_c2]
-            to_append = [e[0] for e in to_append]
-            a_series = pd.Series(to_append, index=myDataFrame.columns)
-            myDataFrame = myDataFrame.append(a_series, ignore_index=True)
+                                    if heart_rate != 0:
+                                        #print(data)
+                                        pass

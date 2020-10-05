@@ -374,7 +374,7 @@ public class protocentral_ads1292r_gui extends PApplet {
               try {
                 date = new Date();
                 dateFormat = new SimpleDateFormat("HH:mm:ss");
-                bufferedWriter.write(dateFormat.format(date) + "," + ecg + "," + rtor_value + "," + hr);
+                bufferedWriter.write(dateFormat.format(date) + "," + ecg + "," + resp + "," + bpm);
                 bufferedWriter.newLine();
               } catch (IOException e) {
                 println("It broke!!!");
@@ -526,9 +526,7 @@ public class protocentral_ads1292r_gui extends PApplet {
         date = new Date();
         output = new FileWriter(jFileChooser.getSelectedFile(), true);
         bufferedWriter = new BufferedWriter(output);
-        bufferedWriter.write(date.toString() + "");
-        bufferedWriter.newLine();
-        bufferedWriter.write("TimeStramp,ECG,SpO2,Respiration");
+        bufferedWriter.write("Time,ECG,Respiration,BPM");
         bufferedWriter.newLine();
       }
     } catch (Exception e) {

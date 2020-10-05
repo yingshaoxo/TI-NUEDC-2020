@@ -16,5 +16,6 @@
             "command": "extension.execute",
             "priority": 4
         }
-    ]
+    ],
+    "python.pythonPath": "C:\\Users\\yingshaoxo\\AppData\\Local\\Programs\\Python\\Python38-32\\python.exe"
 }

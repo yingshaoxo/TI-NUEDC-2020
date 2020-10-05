@@ -17,6 +17,10 @@ print("\n\n\n")
 print("start")
 
 
+def hexlify(bytes_):
+    return str(ubinascii.hexlify(bytes_))
+
+
 class Chars(MyLCD):
     def __init__(self, color=BLACK, font=None, bgcolor=None, scale=1, **kwargs):
         super(Chars, self).__init__(**kwargs)
@@ -218,46 +222,26 @@ ser = UART(1, 115200, bits=8, parity=None, stop=1, flow=0, timeout=0,
 i = 0
 while 1:
     i += 1
-    if i > 5000:
+    if i > 1000:
         i = 0
+
     if ser.any():
-        the_bytes = ser.read()
-        if (len(the_bytes) == 14):
-            # print(str(ubinascii.hexlify(bytes_)))
+        heading1 = ser.read(1)
+        if hexlify(heading1) == "0a":
+            if ser.any():
+                heading2 = ser.read(1)
+                if hexlify(heading2) == "fa":
+                    if ser.any():
+                        data_length_bytes = ser.read(2)
+                        data_length = unpack("H", data_length_bytes)[0]
+                        # print(data_length)
+                        if ser.any():
+                            type_bytes = ser.read(1)
+                            type_ = unpack("B", type_bytes)[0]
+                            if type_ == 2:
+                                if ser.any():
+                                    data_bytes = ser.read(data_length)
+                                    data = unpack("<iiB", data_bytes)
+                                    ecg, resp, heart_rate = data
 
-            ecg = unpack("h", the_bytes[5:7])
-
-            a = unpack("i", the_bytes[7:11])
-
-            b1 = unpack("h", the_bytes[7:9])
-            b2 = unpack("h", the_bytes[9:11])
-
-            c1 = unpack("b", the_bytes[7:8])
-            c2 = unpack("b", the_bytes[8:9])
-            c3 = unpack("b", the_bytes[9:10])
-            c4 = unpack("b", the_bytes[10:11])
-
-            heart_rate = unpack("b", the_bytes[11:12])
-            """
-
-            ecg = unpack("H", the_bytes[5:7])
-
-            a = unpack("I", the_bytes[7:11])
-
-            b1 = unpack("H", the_bytes[7:9])
-            b2 = unpack("H", the_bytes[9:11])
-
-            c1 = unpack("B", the_bytes[7:8])
-            c2 = unpack("B", the_bytes[8:9])
-            c3 = unpack("B", the_bytes[9:10])
-            c4 = unpack("B", the_bytes[10:11])
-
-            heart_rate = unpack("B", the_bytes[11:12])
-            """
-
-            #seperator = "____"
-            #print(a, seperator, b1, b2, seperator, c1,
-            #      c2, c3, c4, seperator, ecg, heart_rate)
-            print(c1[0], c2[0], c3[0], c4[0])
-
-            # twoWindow.draw_at_the_upper_window1(ecg[0])
+                                    twoWindow.draw_at_the_upper_window1(ecg)
