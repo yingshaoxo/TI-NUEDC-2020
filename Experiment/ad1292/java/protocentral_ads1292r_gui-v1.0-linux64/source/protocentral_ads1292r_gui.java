@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.io.*;
 
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
@@ -302,6 +303,7 @@ public class protocentral_ads1292r_gui extends PApplet {
       case CESState_SOF2_Found:
         ecs_rx_state = CESState_PktLen_Found;
         CES_Pkt_Len = (int) rxch;
+        // println(CES_Pkt_Len);
         CES_Pkt_Pos_Counter = CES_CMDIF_IND_LEN;
         CES_Data_Counter = 0;
         break;
@@ -328,18 +330,22 @@ public class protocentral_ads1292r_gui extends PApplet {
             ces_pkt_ecg_bytes[1] = CES_Pkt_Data_Counter[1];
             ces_pkt_ecg_bytes[2] = CES_Pkt_Data_Counter[2];
             ces_pkt_ecg_bytes[3] = CES_Pkt_Data_Counter[3];
+            // System.out.println(ces_pkt_ecg_bytes);
 
             ces_pkt_resp_bytes[0] = CES_Pkt_Data_Counter[4];
             ces_pkt_resp_bytes[1] = CES_Pkt_Data_Counter[5];
             ces_pkt_resp_bytes[2] = CES_Pkt_Data_Counter[6];
             ces_pkt_resp_bytes[3] = CES_Pkt_Data_Counter[7];
+            // System.out.println(ces_pkt_resp_bytes);
 
             int data1 = ecsParsePacket(ces_pkt_ecg_bytes, ces_pkt_ecg_bytes.length - 1);
             ecg = (double) data1 / (Math.pow(10, 3));
+            // System.out.println(ecg);
 
             int data2 = ecsParsePacket(ces_pkt_resp_bytes, ces_pkt_resp_bytes.length - 1);
-            //resp = (double) data2 / (Math.pow(10, 3));
-            resp = (double) data2; /// (Math.pow(10, 3));
+            // resp = (double) data2 / (Math.pow(10, 3));
+            resp = (double) data2 / (Math.pow(10, 3)); /// (Math.pow(10, 3));
+            // System.out.println(data2);
 
             // Assigning the values for the graph buffers
 

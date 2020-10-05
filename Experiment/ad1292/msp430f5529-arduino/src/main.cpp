@@ -1,7 +1,11 @@
 //////////////////////////////////////////////////////////////////////////////////////////
 //
 //   Arduino Library for ADS1292R Shield/Breakout
-//		BeiDou
+//
+//   Copyright (c) 2017 ProtoCentral
+//   Heartrate and respiration computation based on original code from Texas Instruments
+//
+//   This software is licensed under the MIT License(http://opensource.org/licenses/MIT).
 //
 //   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
 //   NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -30,7 +34,6 @@
 
 #include <ads1292r.h>
 #include <SPI.h>
-#include "pins_energia.h"
 
 ads1292r ADS1292; // define class
 
@@ -60,7 +63,7 @@ ads1292r ADS1292; // define class
 volatile uint8_t SPI_Dummy_Buff[30];
 uint8_t DataPacketHeader[16];
 volatile signed long s32DaqVals[8];
-uint8_t data_len = 7;
+uint8_t data_len = 9;
 volatile byte SPI_RX_Buff[15];
 volatile static int SPI_RX_Buff_Count = 0;
 volatile char *SPI_RX_Buff_Ptr;
@@ -438,13 +441,14 @@ void QRS_Algorithm_Interface(int16_t CurrSample)
 
 void setup()
 {
-  delay(3000);
+  delay(2000);
   // initalize the  data ready and chip select pins:
   pinMode(ADS1292_DRDY_PIN, INPUT);   //6
   pinMode(ADS1292_CS_PIN, OUTPUT);    //7
   pinMode(ADS1292_START_PIN, OUTPUT); //5
   pinMode(ADS1292_PWDN_PIN, OUTPUT);  //4
 
+  //Serial1.begin(115200);
   Serial.begin(115200); // Baudrate for serial communica
 
   ADS1292.ads1292_Init(); //initalize ADS1292 slave
@@ -502,25 +506,28 @@ void loop()
     DataPacketHeader[3] = (uint8_t)(data_len >> 8);
     DataPacketHeader[4] = CES_CMDIF_TYPE_DATA; // packet type: 0x02 -data 0x01 -commmand
 
-    DataPacketHeader[5] = ecg_filterout[0];
+    DataPacketHeader[5] = ecg_filterout[0]; // 2 bytes ecg data
     DataPacketHeader[6] = ecg_filterout[0] >> 8;
+    DataPacketHeader[7] = ecg_filterout[0] >> 16;
+    DataPacketHeader[8] = ecg_filterout[0] >> 24;
 
-    DataPacketHeader[7] = s32DaqVals[0]; // 4 bytes ECG data
-    DataPacketHeader[8] = s32DaqVals[0] >> 8;
-    DataPacketHeader[9] = s32DaqVals[0] >> 16;
-    DataPacketHeader[10] = s32DaqVals[0] >> 24;
+    DataPacketHeader[9] = s32DaqVals[0]; // 4 bytes resp data
+    DataPacketHeader[10] = s32DaqVals[0] >> 8;
+    DataPacketHeader[11] = s32DaqVals[0] >> 16;
+    DataPacketHeader[12] = s32DaqVals[0] >> 24;
 
     if (leadoff_deteted == true) // lead in not connected
-      DataPacketHeader[11] = 0;
+      DataPacketHeader[13] = 0;
     else
-      DataPacketHeader[11] = global_HeartRate;
+      DataPacketHeader[13] = global_HeartRate;
 
-    DataPacketHeader[12] = CES_CMDIF_PKT_STOP_1; // Packet footer1:0x00
-    DataPacketHeader[13] = CES_CMDIF_PKT_STOP_2; // Packet footer2:0x0B
+    DataPacketHeader[14] = CES_CMDIF_PKT_STOP_1; // Packet footer1:0x00
+    DataPacketHeader[15] = CES_CMDIF_PKT_STOP_2; // Packet footer2:0x0B
 
-    for (i = 0; i < 14; i++)
+    for (i = 0; i < 16; i++)
     {
       Serial.write(DataPacketHeader[i]); // transmit the data over USB
+      //Serial1.write(DataPacketHeader[i]); // transmit the data over USB
     }
   }
 

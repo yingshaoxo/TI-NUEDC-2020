@@ -33,6 +33,10 @@ def byte_to_string(a_byte, length=2):
 ser = serial.Serial('COM4', 115200)  # open serial port
 print(ser.name)         # check which port was really used
 
+ser.
+exit()
+
+
 myDataFrame = pd.DataFrame(columns=['ecg', "a", "b1", "b2", "c1", "c2", "c3",
                                     "c4", "hear_rate", 'ECG', "A", "B1", "B2", "C1", "C2", "C3", "C4", "HEAR_RATE", "float_c", "float_c1", "float_c2"])
 
