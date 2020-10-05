@@ -31,20 +31,22 @@ class TwoWindow():
 
         self.data_table = {
             "ecg": [],
-            "ecgMin": 1,
-            "ecgMax": 1,
+            "ecgMin": -10000,
+            "ecgMax": 10000,
             "resp": [],
-            "respMin": 1,
-            "respMax": 1,
+            "respMin": -10000,
+            "respMax": 10000,
         }
 
         self.x = 0
+        self.last_y1 = 0
+        self.last_y2 = 0
 
     def _map(self, x, i_m, i_M, o_m, o_M):
         return max(min(o_M, (x - i_m) * (o_M - o_m) // (i_M - i_m) + o_m), o_m)
 
     def get_filtered_value(self, id_, value):
-        kernel = 16 
+        kernel = 1
 
         self._preprocessing_before_drawing(id_, value)
         value = self._map(
@@ -55,17 +57,18 @@ class TwoWindow():
 
         self.x += 1
         if (self.x > 320):
-            self.x = 0
-            self.data_table[id_+"Min"] = 1
-            self.data_table[id_+"Max"] = 1
+            self.x = 1
+            self.last_y, self.last_y2 = 0, 0
+            self.data_table[id_+"Min"] = 0
+            self.data_table[id_+"Max"] = 0
 
         return self.x, sum(self.data_table[id_]) // kernel
 
     def _preprocessing_before_drawing(self, id_, value):
         if value > self.data_table[id_+"Max"]:
-            self.data_table[id_+"Max"] = value
+            self.data_table[id_+"Max"] = value#(self.data_table[id_+"Max"] + value) // 2
         elif value < self.data_table[id_+"Min"]:
-            self.data_table[id_+"Min"] = value
+            self.data_table[id_+"Min"] = value#(self.data_table[id_+"Min"] + value) // 2
 
     def draw_at_the_upper_window(self, value):
         id_ = "ecg"
@@ -73,19 +76,27 @@ class TwoWindow():
         filtered_x, filtered_y = self.get_filtered_value(id_, value)
 
         self.clean_screen(filtered_x+1)
-        self.LCD.drawPixel(filtered_x, filtered_y//2, RED)
+        #self.LCD.drawPixel(filtered_x, filtered_y//2, RED)
+        if (self.last_y1 != 0):
+            self.LCD.drawLine(filtered_x-1, self.last_y1,
+                              filtered_x, filtered_y//2, RED)
+        self.last_y1 = filtered_y//2
 
     def draw_at_the_lower_window(self, value):
         id_ = "resp"
 
         filtered_x, filtered_y = self.get_filtered_value(id_, value)
 
-        self.LCD.drawPixel(filtered_x, filtered_y//2+self.height//2, RED)
+        #self.LCD.drawPixel(filtered_x, filtered_y//2+self.height//2, RED)
+        if (self.last_y2 != 0):
+            self.LCD.drawLine(filtered_x-1, self.last_y2+self.height //
+                              2,  filtered_x, filtered_y//2+self.height//2, RED)
+        self.last_y2 = filtered_y//2
 
     def clean_screen(self, x=None, y=0):
-        if x==None:
+        if x == None:
             self.LCD.drawRect(0, 0, self.width, self.height,
-                            BLACK, border=0, infill=BLACK)
+                              BLACK, border=0, infill=BLACK)
         else:
             if (x > 320):
                 x = -1
@@ -119,7 +130,8 @@ while 1:
                     data_bytes = ser.read(data_length)
                     data = unpack(">iiB", data_bytes)
                     ecg, resp, heart_rate = data
-                    ecg /= 1000
+                    ecg //= 1000
+                    resp //= 1000
                     #print(ecg, resp, heart_rate)
                     twoWindow.draw_at_the_upper_window(ecg)
                     twoWindow.draw_at_the_lower_window(resp)
