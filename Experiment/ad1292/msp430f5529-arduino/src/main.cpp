@@ -448,8 +448,8 @@ void setup()
   pinMode(ADS1292_START_PIN, OUTPUT); //5
   pinMode(ADS1292_PWDN_PIN, OUTPUT);  //4
 
-  //Serial1.begin(115200);
-  Serial.begin(115200); // Baudrate for serial communica
+  Serial.begin(115200);
+  Serial1.begin(115200); // Baudrate for serial communica
 
   ADS1292.ads1292_Init(); //initalize ADS1292 slave
 }
@@ -527,7 +527,7 @@ void loop()
     for (i = 0; i < 16; i++)
     {
       Serial.write(DataPacketHeader[i]); // transmit the data over USB
-      //Serial1.write(DataPacketHeader[i]); // transmit the data over USB
+      Serial1.write(DataPacketHeader[i]); // transmit the data over USB
     }
   }
 

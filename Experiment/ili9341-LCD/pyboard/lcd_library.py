@@ -332,9 +332,10 @@ class ILI(object):
 
 class MyLCD(ILI):
     def __init__(self, cs=Pin_CS, dc=Pin_DC, rst=Pin_RST, bl=None,
-                 port=1, baud=DEFAULT_BAUDRATE, portrait=True):
+                 port=1, baud=DEFAULT_BAUDRATE, portrait=True, char_color=BLACK):
         super().__init__(cs=cs, dc=dc, rst=rst, bl=bl,
                          port=port, baud=baud, portrait=portrait)
+        self.chars__init__(color=char_color)
         self.setDimensions()
         self.fillScreen(WHITE)
 
@@ -517,10 +518,7 @@ class MyLCD(ILI):
         self.drawRect(0, 0, self.current_width, self.current_height,
                       color=color, border=0, infill=color)
 
-
-class Chars(MyLCD):
-    def __init__(self, color=BLACK, font=None, bgcolor=None, scale=1, **kwargs):
-        super(Chars, self).__init__(**kwargs)
+    def chars__init__(self, color=BLACK, font="Arial_14", bgcolor=None, scale=1, **kwargs):
         self.fontColor = color
         if font is not None:
             import fonts
@@ -530,8 +528,7 @@ class Chars(MyLCD):
             self.font = font
             del(fonts)
         else:
-            from exceptions import NoneTypeFont
-            raise NoneTypeFont
+            raise Exception("no fonts folder")
         self.bgcolor = bgcolor if bgcolor is None else self._get_Npix_monoword(
             bgcolor)
         self._fontscale = scale
@@ -617,34 +614,5 @@ class Chars(MyLCD):
             y += (font['height'] + 2) * scale
 
 
-"""
-myLCD = MyLCD(portrait=False)
-
-width = 320
-height = 240 // 2
-
-x = 0.0
-y = 0.0
-while (1):
-    x += 1
-    if (x > 360):
-        break
-    y = sin(x*71/4068)
-    actual_x = (x/360 * width)
-    actual_y = ((y * height/2)+height/2)
-    myLCD.drawPixel(actual_x, actual_y, BLACK)
-
-width = 320
-height = 240 // 2
-
-x = 0.0
-y = 0.0
-while (1):
-    x += 1
-    if (x > 360):
-        break
-    y = sin(x*71/4068)
-    actual_x = (x/360 * width)
-    actual_y = ((y * height/2)+height/2)
-    myLCD.drawPixel(actual_x, actual_y+height, BLACK)
-"""
+if __name__ == "__main__":
+    pass
