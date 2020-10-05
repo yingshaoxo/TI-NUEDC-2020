@@ -339,12 +339,12 @@ public class protocentral_ads1292r_gui extends PApplet {
             // System.out.println(ces_pkt_resp_bytes);
 
             int data1 = ecsParsePacket(ces_pkt_ecg_bytes, ces_pkt_ecg_bytes.length - 1);
-            ecg = (double) data1 / (Math.pow(10, 3));
+            ecg = (double) data1 / 1000;
             // System.out.println(ecg);
 
             int data2 = ecsParsePacket(ces_pkt_resp_bytes, ces_pkt_resp_bytes.length - 1);
             // resp = (double) data2 / (Math.pow(10, 3));
-            resp = (double) data2 / (Math.pow(10, 3)); /// (Math.pow(10, 3));
+            resp = (double) data2 / 1000; /// (Math.pow(10, 3));
             // System.out.println(data2);
 
             // Assigning the values for the graph buffers

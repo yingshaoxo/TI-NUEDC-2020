@@ -449,7 +449,7 @@ void setup()
   pinMode(ADS1292_PWDN_PIN, OUTPUT);  //4
 
   Serial.begin(115200);
-  Serial1.begin(115200); // Baudrate for serial communica
+  Serial1.begin(115200); // Baudrate for serial communication between boards
 
   ADS1292.ads1292_Init(); //initalize ADS1292 slave
 }

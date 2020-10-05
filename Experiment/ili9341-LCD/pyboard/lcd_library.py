@@ -402,6 +402,10 @@ class MyLCD(ILI):
                             trunc(x + (r * i) - r) + (0 if r > 0 else trunc(r)), y + i, abs(trunc(r)), color)
 
     def drawRect(self, x, y, width, height, color, border=1, infill=None):
+        """
+        for i in range(y, height):
+            self.drawHline(x, i, width, color=color)
+        """
         if border is None:
             border = 0
         border = 10 if border > 10 else border
