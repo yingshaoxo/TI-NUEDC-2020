@@ -1,15 +1,18 @@
-
 import micropython
-from micropython import const
-import os
+from micropython import const, alloc_emergency_exception_buf
 
 from array import array
-from gc import collect
+from gc import collect, enable
 from math import ceil, cos, radians, sin, trunc
 from struct import pack, unpack
 from time import sleep
 
 from machine import SPI, Pin
+
+from struct import pack, unpack
+from machine import UART, soft_reset
+import ubinascii
+
 
 # Color definitions.
 #     RGB 16-bit Color (R:5-bit; G:6-bit; B:5-bit)
@@ -123,8 +126,6 @@ GMCTRN1 = const(0xE1)
 PWCTR6 = const(0xFC)
 IFCTL = const(0xF6)
 
-micropython.alloc_emergency_exception_buf(100)
-
 
 class ILI(object):
 
@@ -158,7 +159,6 @@ class ILI(object):
 
         self._gcCollect()
 
-    @micropython.viper
     def reset(self):
         """ Reset the Screen. """
         if self.rstPin:     # Reset Pin is Connected to ESP32
@@ -167,11 +167,9 @@ class ILI(object):
             self.rstPin.on()
             return
 
-    @micropython.viper
     def _gcCollect(self):
         collect()
 
-    @micropython.viper
     def setDimensions(self):
         if self._portrait:
             self.current_height = TFTHEIGHT
@@ -181,7 +179,6 @@ class ILI(object):
             self.current_width = TFTHEIGHT
         self._graph_orientation()
 
-    @micropython.viper
     def _initILI(self):
         self._write_cmd(LCDOFF)                     # Display OFF
         sleep(0.01)
@@ -260,7 +257,6 @@ class ILI(object):
         words = pack(fmt, *words)
         self._write_data(words)
 
-    @micropython.viper
     def _graph_orientation(self):
         self._write_cmd(MADCTL)   # Memory Access Control
         # Portrait:
@@ -270,7 +266,6 @@ class ILI(object):
         data = 0x48 if self._portrait else 0x28
         self._write_data(data)
 
-    @micropython.viper
     def _char_orientation(self):
         self._write_cmd(MADCTL)   # Memory Access Control
         # Portrait:
@@ -280,7 +275,6 @@ class ILI(object):
         data = 0xE8 if self._portrait else 0x58
         self._write_data(data)
 
-    @micropython.viper
     def _image_orientation(self):
         self._write_cmd(MADCTL)   # Memory Access Control
         # Portrait:
@@ -332,12 +326,12 @@ class ILI(object):
 
 class MyLCD(ILI):
     def __init__(self, cs=Pin_CS, dc=Pin_DC, rst=Pin_RST, bl=None,
-                 port=1, baud=DEFAULT_BAUDRATE, portrait=True, char_color=BLACK):
+                 port=1, baud=DEFAULT_BAUDRATE, portrait=True, char_color=BLACK, background=WHITE):
         super().__init__(cs=cs, dc=dc, rst=rst, bl=bl,
                          port=port, baud=baud, portrait=portrait)
         self.chars__init__(color=char_color)
         self.setDimensions()
-        self.fillScreen(WHITE)
+        self.fillScreen(background)
 
     def _set_ortho_line(self, width, length, color):
         pixels = width * (length + 1)
@@ -545,7 +539,6 @@ class MyLCD(ILI):
         mul(r0, r1)
         adc(r0, r2)
 
-    @micropython.viper
     def _get_bgcolor(self, x, y):
         self._set_window(x, x, y, y)
         data = self._write_cmd(RAMRD, read=True)
