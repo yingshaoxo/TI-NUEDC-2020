@@ -3,9 +3,7 @@ We handle ad1292 here
 """
 
 
-
 from lcd_library import *
-from ucollections import deque
 enable()
 
 
@@ -19,96 +17,140 @@ def hexlify(bytes_):
 
 class TwoWindow():
     def __init__(self):
-        self.LCD = MyLCD(portrait=False, background=BLACK)
+        self.LCD = MyLCD(portrait=False, background=BLACK, char_color=WHITE)
 
         self.width = 320
         self.height = 240
 
-        self.data_table = {
-            "ecg": [],
-            "ecgMin": -10000,
-            "ecgMax": 10000,
-            "resp": [],
-            "respMin": -10000,
-            "respMax": 10000,
-        }
-
-        self.index = 0
         self.x = 0
+
+        self.ecg_data = []
+        self.ecg_window_skip = 2
+        self.ecg_window_counting = 0
         self.last_y1 = 0
-        self.last_y2 = 0
+
+        self.resp_data = []
+        self.resp_window_skip = 2
+        self.resp_window_counting = 0
+        self.resp_temp_min = 5000
+        self.resp_temp_max = 6000
+        self.resp_min = 5000
+        self.resp_max = 6000
+
+        self.bpm_value = 0
+        self.resp_value = 0
+
+        #self.LCD.drawVline(0,0,self.height, color=RED, width=1)
 
     def _map(self, x, i_m, i_M, o_m, o_M):
         return max(min(o_M, (x - i_m) * (o_M - o_m) // (i_M - i_m) + o_m), o_m)
 
-    def get_filtered_value(self, id_, value, kernel=1):
-        self._preprocessing_before_drawing(id_, value)
-        value = self._map(value, self.data_table[id_+"Min"], self.data_table[id_+"Max"], 0, self.height)
+    def handle_ecg_data(self, value, kernel=1, range_val=5000):
+        value = -value
+        value = self._map(value, -range_val, range_val, 0, self.height)
 
-        self.data_table[id_].append(value)
-        self.data_table[id_] = self.data_table[id_][-kernel:]
+        self.ecg_data.append(value)
+        self.ecg_data = self.ecg_data[-kernel:]
 
-        self.x += 1
-        if (self.x > 320):
-            self.x = 1
-            self.last_y, self.last_y2 = 0, 0
-            self.data_table[id_+"Min"] = 0
-            self.data_table[id_+"Max"] = 0
-            collect()
+        if (len(self.ecg_data) == kernel):
+            self.x += 1
+            if (self.x > 320):
+                self.x = 0
+                self.resp_min = (self.resp_min + self.resp_temp_min) // 2
+                self.resp_max = (self.resp_max + self.resp_temp_max) // 2
+                self.draw_bpm_and_resp_text()
+                collect()
 
-        return self.x, sum(self.data_table[id_]) // kernel
-
-    def _preprocessing_before_drawing(self, id_, value):
-        if value > self.data_table[id_+"Max"]:
-            self.data_table[id_+"Max"] = (self.data_table[id_+"Max"] + value) // 2
-            #self.data_table[id_+"Max"] = value
-        elif value < self.data_table[id_+"Min"]:
-            self.data_table[id_+"Min"] = (self.data_table[id_+"Min"] + value) // 2
-            #self.data_table[id_+"Min"] = value
+            self.ecg_data.sort()
+            if len(self.ecg_data) > kernel // 2-1:
+                return self.x, self.ecg_data[kernel//2-1]
+            else:
+                return self.x, value
+        else:
+            return None, None
 
     def draw_at_the_upper_window(self, value):
         id_ = "ecg"
 
-        filtered_x, filtered_y = self.get_filtered_value(id_, value, kernel=8)
+        # for scaling the whole view, to see more waves
+        self.ecg_window_counting += 1
+        if self.ecg_window_counting < self.ecg_window_skip:
+            return
+        else:
+            self.ecg_window_counting = 0
 
-        self.clean_screen(filtered_x+1)
-        #self.LCD.drawPixel(filtered_x, filtered_y//2, RED)
-        if (self.last_y1 != 0):
-            self.LCD.drawLine(filtered_x-1, self.last_y1,
-                              filtered_x, filtered_y//2, RED)
-        self.last_y1 = filtered_y//2
+        # to get ride of noise by choice 2 from [-999, 2, 777]
+        x, y = self.handle_ecg_data(value, kernel=3, range_val=5000)
+
+        if (x and y):
+            y //= 2
+            self.clean_screen(x)
+            # if (self.last_y1 != 0):
+            self.LCD.drawLine(x-1, self.last_y1, x, y, RED)
+            self.last_y1 = y
+
+    def handle_resp_data(self, value, kernel=1):
+        if value < self.resp_temp_min:
+            self.resp_temp_min = value
+        elif value > self.resp_temp_max:
+            self.resp_temp_max = value
+
+        value = self._map(value, self.resp_min, self.resp_max, 0, self.height)
+
+        self.resp_data.append(value)
+        self.resp_data = self.resp_data[-kernel:]
+        if len(self .resp_data) == kernel:
+            value = sum(self.resp_data) // kernel
+            return value
+        else:
+            return None
 
     def draw_at_the_lower_window(self, value):
         id_ = "resp"
 
-        filtered_x, filtered_y = self.get_filtered_value(id_, value, kernel=16)
+        # for scaling the whole view, to see more waves
+        self.resp_window_counting += 1
+        if (self.resp_window_counting < self.resp_window_skip):
+            return
+        else:
+            self.resp_window_counting = 0
 
-        #self.LCD.drawPixel(filtered_x, filtered_y//2+self.height//2, RED)
-        if (self.last_y2 != 0):
-            self.LCD.drawLine(filtered_x-1, self.last_y2+self.height //
-                              2,  filtered_x, filtered_y//2+self.height//2, RED)
-        self.last_y2 = filtered_y//2
+        # print(value)
+        y = self.handle_resp_data(value, kernel=16)
+
+        if y:
+            self.LCD.drawPixel(self.x, y//2 + self.height//2, RED)
+    
+    def draw_bpm_and_resp_text(self):
+        bpm = str(self.bpm_value)
+        bpm += " "*(3-len(bpm))
+
+        resp = str(self.resp_value)
+        resp += " "*(2-len(resp))
+
+        self.LCD.printLn("HR "+bpm, 250, 2, bc=BLACK)
+        self.LCD.printLn("REPS "+resp, 250, 200, bc=BLACK)
 
     def clean_screen(self, x=None, y=0):
         if x == None:
-            self.LCD.drawRect(0, 0, self.width, self.height,
-                              BLACK, border=0, infill=BLACK)
+            self.LCD.drawRect(0, 0, self.width, self.height, BLACK, border=0, infill=BLACK)
         else:
-            if (x > 320):
+            if (x > 320 or x < 0):
                 x = -1
             x += 1
-            self.LCD.drawVline(x, y, self.height, BLACK, width=2)
+            self.LCD.drawVline(x-1, y, self.height, BLACK, width=1)
+            self.LCD.drawVline(x, y, self.height, BLACK, width=1)
+            self.LCD.drawVline(x+1, y, self.height, BLACK, width=1)
 
 
-#soft_reset()
+# soft_reset()
 alloc_emergency_exception_buf(100)
 
 twoWindow = TwoWindow()
 
 # tx: x9
 # rx: x10
-ser = UART(1, 115200, bits=8, parity=None, stop=1, flow=0, timeout=0,
-           timeout_char=2, rxbuf=64)                         # init with given baudrate
+ser = UART(1, 115200, bits=8, parity=None, stop=1, flow=0, timeout=0, timeout_char=2, rxbuf=64)                         # init with given baudrate
 i = 0
 while 1:
     i += 1
@@ -128,13 +170,15 @@ while 1:
                     type_ = unpack("B", type_bytes)[0]
                     if type_ == 2:
                         data_bytes = ser.read(data_length)
-                        data = unpack(">iiB", data_bytes)
+                        data = unpack("<iiB", data_bytes)
                         ecg, resp, heart_rate = data
                         ecg //= 1000
-                        resp //= 1000
-                        #print(ecg, resp, heart_rate)
+                        resp %= 10000
+                        # print(ecg, resp, heart_rate)
                         twoWindow.draw_at_the_upper_window(ecg)
                         twoWindow.draw_at_the_lower_window(resp)
+                        twoWindow.bpm_value = heart_rate
+                        twoWindow.resp_value = 0
         except KeyboardInterrupt:
             import micropython
             import gc
@@ -142,5 +186,5 @@ while 1:
             print("\n------\nMemory info:\n", micropython.mem_info())
             print("\n------\nStack usage:\n", micropython.stack_use())
             soft_reset()
-        #except Exception as e:
-        #    print(e)
+        except Exception as e:
+            print(e)

@@ -213,6 +213,8 @@ class ILI(object):
         # self.spi.write(word)
         if isinstance(word, bytes):
             self.spi.write(bytearray(word))
+        elif isinstance(word, bytearray):
+            self.spi.write(word)
         else:
             self.spi.write(bytearray([word]))
         self.csPin.on()
