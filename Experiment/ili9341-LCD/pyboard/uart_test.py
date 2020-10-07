@@ -30,14 +30,16 @@ class TwoWindow():
         self.last_y1 = 0
 
         self.resp_data = []
-        self.resp_window_skip = 2
+        self.resp_window_skip = 3
         self.resp_window_counting = 0
         self.resp_temp_min = 5000
         self.resp_temp_max = 6000
         self.resp_min = 5000
         self.resp_max = 6000
 
+        self.bpm_value_data = []
         self.bpm_value = 0
+
         self.resp_value = 0
 
         #self.LCD.drawVline(0,0,self.height, color=RED, width=1)
@@ -58,6 +60,8 @@ class TwoWindow():
                 self.x = 0
                 self.resp_min = (self.resp_min + self.resp_temp_min) // 2
                 self.resp_max = (self.resp_max + self.resp_temp_max) // 2
+                #self.resp_min = int(self.resp_min*0.6 + self.resp_temp_min*0.4)
+                #self.resp_max = int(self.resp_max*0.6 + self.resp_temp_max*0.4)
                 self.draw_bpm_and_resp_text()
                 collect()
 
@@ -119,8 +123,16 @@ class TwoWindow():
         y = self.handle_resp_data(value, kernel=16)
 
         if y:
+            y = self.height - y # just like -value
             self.LCD.drawPixel(self.x, y//2 + self.height//2, RED)
-    
+
+    def handle_bpm_value(self, value, kernel=5):
+        self.bpm_value_data.append(value)
+        self.bpm_value_data = self.bpm_value_data[-kernel:]
+
+        if (len(self.bpm_value_data) == kernel):
+            self.bpm_value = sum(self.bpm_value_data) // kernel
+
     def draw_bpm_and_resp_text(self):
         bpm = str(self.bpm_value)
         bpm += " "*(3-len(bpm))
@@ -175,9 +187,12 @@ while 1:
                         ecg //= 1000
                         resp %= 10000
                         # print(ecg, resp, heart_rate)
+
                         twoWindow.draw_at_the_upper_window(ecg)
                         twoWindow.draw_at_the_lower_window(resp)
-                        twoWindow.bpm_value = heart_rate
+
+                        if (heart_rate != 0):
+                            twoWindow.handle_bpm_value(heart_rate)
                         twoWindow.resp_value = 0
         except KeyboardInterrupt:
             import micropython
