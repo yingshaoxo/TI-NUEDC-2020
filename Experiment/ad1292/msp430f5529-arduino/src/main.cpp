@@ -34,6 +34,9 @@
 
 #include <ads1292r.h>
 #include <SPI.h>
+#include <firFilter.h>
+
+firFilter Filter;
 
 ads1292r ADS1292; // define class
 
@@ -454,6 +457,7 @@ void setup()
   ADS1292.ads1292_Init(); //initalize ADS1292 slave
 }
 
+long int filtered_resp = 0;
 void loop()
 {
   if ((digitalRead(ADS1292_DRDY_PIN)) == LOW) // Sampling rate is set to 125SPS ,DRDY ticks for every 8ms
@@ -490,6 +494,7 @@ void loop()
     else
       leadoff_deteted = false;
 
+
     ecg_wave_buff[0] = (int16_t)(s32DaqVals[1] >> 8); // ignore the lower 8 bits out of 24bits
 
     if (leadoff_deteted == false)
@@ -499,6 +504,9 @@ void loop()
     }
     else
       ecg_filterout[0] = 0;
+    
+    filtered_resp = Filter.run((long int) s32DaqVals[0]);
+    //Serial.println(filtered_resp);
 
     DataPacketHeader[0] = CES_CMDIF_PKT_START_1; // Packet header1 :0x0A
     DataPacketHeader[1] = CES_CMDIF_PKT_START_2; // Packet header2 :0xFA
@@ -511,10 +519,17 @@ void loop()
     DataPacketHeader[7] = ecg_filterout[0] >> 16;
     DataPacketHeader[8] = ecg_filterout[0] >> 24;
 
-    DataPacketHeader[9] = s32DaqVals[0]; // 4 bytes resp data
-    DataPacketHeader[10] = s32DaqVals[0] >> 8;
-    DataPacketHeader[11] = s32DaqVals[0] >> 16;
-    DataPacketHeader[12] = s32DaqVals[0] >> 24;
+    /*
+    DataPacketHeader[5] = s32DaqVals[0]; // 2 bytes ecg data
+    DataPacketHeader[6] = s32DaqVals[0] >> 8;
+    DataPacketHeader[7] = s32DaqVals[0] >> 16;
+    DataPacketHeader[8] = s32DaqVals[0] >> 24;
+    */
+
+    DataPacketHeader[9] = filtered_resp; // 4 bytes resp data
+    DataPacketHeader[10] = filtered_resp >> 8;
+    DataPacketHeader[11] = filtered_resp >> 16;
+    DataPacketHeader[12] = filtered_resp >> 24;
 
     if (leadoff_deteted == true) // lead in not connected
       DataPacketHeader[13] = 0;

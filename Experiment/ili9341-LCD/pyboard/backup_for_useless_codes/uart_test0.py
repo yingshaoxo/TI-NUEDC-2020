@@ -32,6 +32,10 @@ class TwoWindow():
         self.resp_data = []
         self.resp_window_skip = 3
         self.resp_window_counting = 0
+        self.resp_temp_min = 5000
+        self.resp_temp_max = 6000
+        self.resp_min = 5000
+        self.resp_max = 6000
 
         self.bpm_value_data = []
         self.bpm_value = 0
@@ -54,6 +58,10 @@ class TwoWindow():
             self.x += 1
             if (self.x > 320):
                 self.x = 0
+                self.resp_min = (self.resp_min + self.resp_temp_min) // 2
+                self.resp_max = (self.resp_max + self.resp_temp_max) // 2
+                #self.resp_min = int(self.resp_min*0.6 + self.resp_temp_min*0.4)
+                #self.resp_max = int(self.resp_max*0.6 + self.resp_temp_max*0.4)
                 self.draw_bpm_and_resp_text()
                 collect()
 
@@ -85,9 +93,13 @@ class TwoWindow():
             self.LCD.drawLine(x-1, self.last_y1, x, y, RED)
             self.last_y1 = y
 
-    def handle_resp_data(self, value, kernel=1, range_val=5000):
-        print(value)
-        value = self._map(value, 0, range_val, 0, self.height)
+    def handle_resp_data(self, value, kernel=1):
+        if value < self.resp_temp_min:
+            self.resp_temp_min = value
+        elif value > self.resp_temp_max:
+            self.resp_temp_max = value
+
+        value = self._map(value, self.resp_min, self.resp_max, 0, self.height)
 
         self.resp_data.append(value)
         self.resp_data = self.resp_data[-kernel:]
@@ -108,7 +120,7 @@ class TwoWindow():
             self.resp_window_counting = 0
 
         # print(value)
-        y = self.handle_resp_data(value, kernel=16, range_val=5000)
+        y = self.handle_resp_data(value, kernel=16)
 
         if y:
             y = self.height - y # just like -value
@@ -189,5 +201,5 @@ while 1:
             print("\n------\nMemory info:\n", micropython.mem_info())
             print("\n------\nStack usage:\n", micropython.stack_use())
             soft_reset()
-        #except Exception as e:
-        #    print(e)
+        except Exception as e:
+            print(e)

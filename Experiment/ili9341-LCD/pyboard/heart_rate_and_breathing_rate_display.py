@@ -86,7 +86,7 @@ class TwoWindow():
             self.last_y1 = y
 
     def handle_resp_data(self, value, kernel=1, range_val=5000):
-        print(value)
+        #print(value)
         value = self._map(value, 0, range_val, 0, self.height)
 
         self.resp_data.append(value)
@@ -111,7 +111,7 @@ class TwoWindow():
         y = self.handle_resp_data(value, kernel=16, range_val=5000)
 
         if y:
-            y = self.height - y # just like -value
+            #y = self.height - y # just like -value
             self.LCD.drawPixel(self.x, y//2 + self.height//2, RED)
 
     def handle_bpm_value(self, value, kernel=5):
