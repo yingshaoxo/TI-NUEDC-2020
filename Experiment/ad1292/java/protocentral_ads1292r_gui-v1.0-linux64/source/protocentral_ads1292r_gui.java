@@ -340,7 +340,7 @@ public class protocentral_ads1292r_gui extends PApplet {
 
             int data1 = ecsParsePacket(ces_pkt_ecg_bytes, ces_pkt_ecg_bytes.length - 1);
             ecg = (double) data1 / 1000;
-            //System.out.println(ecg);
+            System.out.println(ecg);
 
             int data2 = ecsParsePacket(ces_pkt_resp_bytes, ces_pkt_resp_bytes.length - 1);
             // resp = (double) data2 / (Math.pow(10, 3));
