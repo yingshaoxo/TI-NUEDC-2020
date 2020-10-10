@@ -4,9 +4,8 @@ import time
 
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)  # 灰度更快
-sensor.set_framesize(sensor.QQVGA)
+sensor.set_framesize(sensor.VGA) #640 x 480
 sensor.skip_frames(time=2000)
-clock = time.clock()
 
 
 WIDTH = sensor.width()
@@ -97,7 +96,5 @@ class MyEye():
 myEye = MyEye()
 while 1:
     myEye.update_img()
-    # myEye.find_circle()
-    # myEye.find_rectangles(threshold=20000)
     myEye.find_rectangle()
     myEye.find_circle()
