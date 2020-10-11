@@ -45,7 +45,24 @@ class MyEye():
         self.update_img()
 
     def get_shape_and_x_y(self):
-        TEST_TIMES = 10
+        temp_triangle_shape = None
+        temp_triangle_x = None
+        temp_triangle_y = None
+        for _ in range(10):
+            shape, x, y = self.get_shape_and_x_y_raw()
+            if shape == "circle":
+                return shape, x, y
+            else:
+                if shape == "rectangle":
+                    return shape, x, y 
+                elif shape == "triangle":
+                    temp_triangle_shape = shape
+                    temp_triangle_x = x
+                    temp_triangle_y = y
+        return temp_triangle_shape, temp_triangle_x, temp_triangle_y
+    
+    def get_shape_and_x_y_raw(self):
+        TEST_TIMES = 5
         blob = None
         largest_line_num = 0
         for _ in range(TEST_TIMES):
@@ -57,9 +74,6 @@ class MyEye():
                 blobs = self.img.find_blobs([RED_THRESHOLD, GREEN_THRESHOLD, BLUE_THRESHOLD], area_threshold=threshold)
                 if len(blobs):
                     blob = find_max_blob(blobs)
-                    if largest_line_num ==0:
-                        self.img.draw_rectangle(blob.rect()) # rect
-                        self.img.draw_cross(blob.cx(), blob.cy()) # cx, cy
 
                     sub_img = self.binary_img.copy(blob.rect())
                     line_count = 0
@@ -72,22 +86,22 @@ class MyEye():
                     break
 
                 threshold -= gradient_descent
-        #if blob:
-        #    convexity = blob.convexity()
-        #    roundness = blob.roundness()
-        #    print("converxity: ", convexity, "roundness: ", roundness)
 
         if largest_line_num == 3:
             x = blob.cx()
             y = blob.cy()
             #self.img.draw_rectangle(blob.rect(), color=(255, 0, 0))
             #self.img.draw_cross(x, y, color=(0, 255, 0))
+            self.img.draw_rectangle(blob.rect()) # rect
+            self.img.draw_cross(blob.cx(), blob.cy()) # cx, cy
             return "triangle", x, y
         elif largest_line_num == 4:
             #self.img.draw_rectangle(blob.rect(), color=(255, 0, 0))
             x = blob.cx()
             y = blob.cy()
             #self.img.draw_cross(x, y, color=(0, 255, 0))
+            self.img.draw_rectangle(blob.rect()) # rect
+            self.img.draw_cross(blob.cx(), blob.cy()) # cx, cy
             return "rectangle", x, y
         elif largest_line_num > 4:
             x = blob.cx()
@@ -95,6 +109,8 @@ class MyEye():
             r = blob.w()//2
             #self.img.draw_circle(x, y, r, color=(255, 0, 0))
             #self.img.draw_cross(x, y, color=(0, 255, 0))
+            self.img.draw_rectangle(blob.rect()) # rect
+            self.img.draw_cross(blob.cx(), blob.cy()) # cx, cy
             return "circle", x, y
         else:
             return None, None, None
