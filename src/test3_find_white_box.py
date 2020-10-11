@@ -306,8 +306,8 @@ sensor.skip_frames(time=1000)
 
 WIDTH = sensor.width()
 HEIGHT = sensor.height()
-CROP_WIDTH = 100
-CROP_HEIGHT = 50
+CROP_WIDTH = WIDTH
+CROP_HEIGHT = HEIGHT
 TOP_LEFT_X = (WIDTH - CROP_WIDTH) // 2
 TOP_LEFT_Y = (HEIGHT - CROP_HEIGHT) // 2
 BOTTOM_RIGHT_X = TOP_LEFT_X + CROP_WIDTH
@@ -339,6 +339,23 @@ class MyEye():
 
     def release(self):
         self.update_img()
+
+    """
+    def get_shape_and_blob(self):
+        temp_triangle_shape = None
+        temp_triangle_blob = None
+        for _ in range(10):
+            shape, blob = self.get_shape_and_blob_raw()
+            if shape == "circle":
+                return shape, blob
+            else:
+                if shape == "rectangle":
+                    return shape, blob
+                elif shape == "triangle":
+                    temp_triangle_shape = shape
+                    temp_triangle_blob = blob
+        return temp_triangle_shape, temp_triangle_blob
+    """
 
     def get_shape_and_blob(self):
         shape_list = []
@@ -467,5 +484,5 @@ class MyEye():
 myEye = MyEye()
 
 while 1:
-    #myEye.auto_crop_screen_based_on_white_color()
-    myEye.do_a_fixed_detection()
+    myEye.auto_crop_screen_based_on_white_color()
+    #myEye.do_a_fixed_detection()

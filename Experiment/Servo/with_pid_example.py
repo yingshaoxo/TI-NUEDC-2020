@@ -5,6 +5,8 @@ from pyb import Servo
 
 pan_servo=Servo(1)
 tilt_servo=Servo(2)
+pan_servo.speed(-100)
+tilt_servo.speed(-100)
 
 red_threshold  = (13, 49, 18, 61, 6, 47)
 
@@ -20,6 +22,19 @@ sensor.skip_frames(10) # Let new settings take affect.
 sensor.set_auto_whitebal(False) # turn this off.
 clock = time.clock() # Tracks FPS.
 
+WIDTH = sensor.width()
+HEIGHT = sensor.height()
+CROP_WIDTH = 100
+CROP_HEIGHT = 50
+TOP_LEFT_X = (WIDTH - CROP_WIDTH) // 2
+TOP_LEFT_Y = (HEIGHT - CROP_HEIGHT) // 2
+BOTTOM_RIGHT_X = TOP_LEFT_X + CROP_WIDTH
+BOTTOM_RIGHT_Y = TOP_LEFT_Y + CROP_HEIGHT
+
+RED_THRESHOLD = (0, 100,   0, 127,   0, 127)  # L A B
+GREEN_THRESHOLD = (0, 100,   -128, 0,   0, 127)  # L A B
+BLUE_THRESHOLD = (0, 100,   -128, 127,   -128, 0)  # L A B
+
 def find_max(blobs):
     max_size=0
     for blob in blobs:
@@ -31,9 +46,9 @@ def find_max(blobs):
 
 while(True):
     clock.tick() # Track elapsed milliseconds between snapshots().
-    img = sensor.snapshot() # Take a picture and return the image.
+    img = sensor.snapshot().lens_corr(1.8).crop((TOP_LEFT_X, TOP_LEFT_Y, BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y), copy_to_fb=True)
 
-    blobs = img.find_blobs([red_threshold])
+    blobs = img.find_blobs([RED_THRESHOLD, GREEN_THRESHOLD, BLUE_THRESHOLD])
     if blobs:
         max_blob = find_max(blobs)
         pan_error = max_blob.cx()-img.width()/2

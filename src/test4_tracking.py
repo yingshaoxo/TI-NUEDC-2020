@@ -1,9 +1,10 @@
 import gc
 import sensor
 import image
-from pyb import UART
+from pyb import UART, Servo
 from utime import sleep_ms
 import ubinascii
+from pid import PID
 
 
 #######################
@@ -291,6 +292,25 @@ lcd = OpenSmart_LCD()
 
 
 #######################
+# The servo
+#######################
+horizontal_servo = Servo(1)   # create a servo object on position P7
+vertical_servo = Servo(2)   # create a servo object on position P8
+horizontal_servo.speed(-100)
+vertical_servo.speed(-100)
+
+horizontal_servo.angle(0)
+vertical_servo.angle(20)
+
+#sleep_ms(500)
+
+#pan_pid = PID(p=0.07, i=0, imax=90) #脱机运行或者禁用图像传输，使用这个PID
+#tilt_pid = PID(p=0.05, i=0, imax=90) #脱机运行或者禁用图像传输，使用这个PID
+pan_pid = PID(p=0.1, i=0, imax=90)#在线调试使用这个PID
+tilt_pid = PID(p=0.1, i=0, imax=90)#在线调试使用这个PID
+
+
+#######################
 # The main process
 #######################
 
@@ -306,8 +326,8 @@ sensor.skip_frames(time=1000)
 
 WIDTH = sensor.width()
 HEIGHT = sensor.height()
-CROP_WIDTH = 100
-CROP_HEIGHT = 50
+CROP_WIDTH = 50
+CROP_HEIGHT = 30
 TOP_LEFT_X = (WIDTH - CROP_WIDTH) // 2
 TOP_LEFT_Y = (HEIGHT - CROP_HEIGHT) // 2
 BOTTOM_RIGHT_X = TOP_LEFT_X + CROP_WIDTH
@@ -426,6 +446,15 @@ class MyEye():
             return True
         return False
 
+    def display_info(self, side_length, shape, distance):
+        side_length = str(side_length)
+        distance = str(distance)
+        lcd.fill_screen()
+        lcd.write_string(0, 0, "side length: " + side_length)
+        lcd.write_string(0, 1, "shape: " + shape)
+        lcd.write_string(0, 2, "distance: " + distance)
+        lcd.write_string(0, 3, "中文测试：" + distance)
+
     def auto_crop_screen_based_on_white_color(self):
         THRESHOLD = 100
         EROSION_SIZE = 2
@@ -454,18 +483,41 @@ class MyEye():
                 break
             area_threshold -= gradient_descent
     
-    def display_info(self, side_length, shape, distance):
-        side_length = str(side_length)
-        distance = str(distance)
-        lcd.fill_screen()
-        lcd.write_string(0, 0, "side length: " + side_length)
-        lcd.write_string(0, 1, "shape: " + shape)
-        lcd.write_string(0, 2, "distance: " + distance)
-        lcd.write_string(0, 3, "中文测试：" + distance)
+    def tracking_a_point(self, x, y):
+        TOP_LEFT_X = (WIDTH - CROP_WIDTH) // 2
+        TOP_LEFT_Y = (HEIGHT - CROP_HEIGHT) // 2
+        BOTTOM_RIGHT_X = TOP_LEFT_X + CROP_WIDTH
+        BOTTOM_RIGHT_Y = TOP_LEFT_Y + CROP_HEIGHT
+
+        screen_center_x = TOP_LEFT_X + CROP_WIDTH //2
+        screen_center_y = TOP_LEFT_Y + CROP_HEIGHT //2
+
+        pan_error = x-screen_center_x
+        tilt_error = y-screen_center_y
+
+        pan_output=pan_pid.get_pid(pan_error,1) / 8
+        tilt_output=tilt_pid.get_pid(tilt_error,1) /8
+
+        horizontal_servo.angle(horizontal_servo.angle()+pan_output)
+        vertical_servo.angle(vertical_servo.angle()-tilt_output)
+    
+    def tracking_an_object(self):
+        self.update_img()
+        shape, blob = self.get_shape_and_blob()
+        if shape:
+            shape, x, y, side_length = self.parse_blob(shape, blob)
+            self.tracking_a_point(x, y)
+    
 
 
 myEye = MyEye()
+myEye.auto_crop_screen_based_on_white_color()
 
-while 1:
-    #myEye.auto_crop_screen_based_on_white_color()
-    myEye.do_a_fixed_detection()
+try:
+    while 1:
+        #myEye.auto_crop_screen_based_on_white_color()
+        #myEye.do_a_fixed_detection()
+        myEye.tracking_an_object()
+except KeyboardInterrupt:
+    horizontal_servo.angle(0)
+    vertical_servo.angle(0)
