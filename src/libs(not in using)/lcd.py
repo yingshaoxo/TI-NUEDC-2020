@@ -122,6 +122,7 @@ class OpenSmart_LCD():
             text = text_to_hex(text.ljust(5))
             self.write_command("7E0711{text}EF".format(text=text))
 
+
 if __name__ == "__main__":
     lcd = OpenSmart_LCD()
 
@@ -132,4 +133,3 @@ if __name__ == "__main__":
         lcd.fill_screen(lcd.color_table[index])
         lcd.wait(1)
         index += 1
-        

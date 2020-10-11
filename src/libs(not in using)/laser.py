@@ -6,7 +6,8 @@ from commom import *
 
 class Distance_Sensor():
     def __init__(self):
-        self.serial = UART(3, 9600, timeout=0)  # open serial port
+        self.serial = UART(3, 9600, timeout=0)
+        # UART(3): (TX, RX) = (P4, P5)
         self.wait(1.5)
 
     def wait(self, time=1):
@@ -59,12 +60,6 @@ class Distance_Sensor():
     def close_POD(self):
         self.write_command("FA 04 0D 00 F5")
 
-    def measure_once(self):
-        self.write_command("80 06 02 78")
-
-    def measure_times(self):
-        self.write_command("80 06 03 77")
-
     def set_time_between_maesures(self):
         self.write_command("FA 04 05 01 FC")
 
@@ -104,6 +99,13 @@ class Distance_Sensor():
         except Exception as e:
             print(e)
             return None
+
+    def measure_once(self):
+        self.write_command("80 06 02 78")
+
+    def measure_multiple_times(self):
+        self.write_command("80 06 03 77")
+
 
 
 if __name__ == "__main__":
