@@ -3,10 +3,10 @@ import image
 import gc
 import time
 
+sensor.reset()
 gc.enable()
 
-sensor.reset()
-#sensor.set_pixformat(sensor.RGB565)  # 灰度更快
+# sensor.set_pixformat(sensor.RGB565)  # 灰度更快
 sensor.set_pixformat(sensor.GRAYSCALE)  # 灰度更快
 sensor.set_framesize(sensor.QVGA)  # 320 x 240
 sensor.skip_frames(time=1000)
@@ -19,17 +19,19 @@ TOP_LEFT_Y = (sensor.height() - CROP_HEIGHT) // 2
 BOTTOM_RIGHT_X = TOP_LEFT_X + CROP_WIDTH
 BOTTOM_RIGHT_Y = TOP_LEFT_Y + CROP_HEIGHT
 
-RED_THRESHOLD = (0,100,   0,127,   0,127) # L A B
-GREEN_THRESHOLD = (0,100,   -128,0,   0,127) # L A B
-BLUE_THRESHOLD = (0,100,   -128,127,   -128,0) # L A B
+RED_THRESHOLD = (0, 100,   0, 127,   0, 127)  # L A B
+GREEN_THRESHOLD = (0, 100,   -128, 0,   0, 127)  # L A B
+BLUE_THRESHOLD = (0, 100,   -128, 127,   -128, 0)  # L A B
+
 
 def find_max_blob(blobs):
-    max_size=0
+    max_size = 0
     for blob in blobs:
         if blob[2]*blob[3] > max_size:
-            max_blob=blob
+            max_blob = blob
             max_size = blob[2]*blob[3]
     return max_blob
+
 
 class MyEye():
     def __init__(self) -> None:
@@ -44,8 +46,41 @@ class MyEye():
     def release(self):
         self.update_img()
 
-    def get_shape_and_x_y(self):
-        TEST_TIMES = 10
+    """
+    def get_shape_and_blob(self):
+        temp_triangle_shape = None
+        temp_triangle_blob = None
+        for _ in range(10):
+            shape, blob = self.get_shape_and_blob_raw()
+            if shape == "circle":
+                return shape, blob
+            else:
+                if shape == "rectangle":
+                    return shape, blob
+                elif shape == "triangle":
+                    temp_triangle_shape = shape
+                    temp_triangle_blob = blob
+        return temp_triangle_shape, temp_triangle_blob
+    """
+    def get_shape_and_blob(self):
+        shape_list = []
+        last_blob = None
+        accurate_shape = None
+        for _ in range(10):
+            shape, blob = self.get_shape_and_blob_raw()
+            if shape:
+                shape_list.append(shape)
+                last_blob = blob
+        if "circle" in shape_list: # if there has any circle, it's circle
+            accurate_shape = "circle"
+        elif "rectangle" in shape_list: # if there has any rectangle and no circle, it's rectangle 
+            accurate_shape = "rectangle"
+        elif "triangle" in shape_list: # if all of them are triangle, it's triangle
+            accurate_shape = "triangle"
+        return accurate_shape, last_blob
+
+    def get_shape_and_blob_raw(self):
+        TEST_TIMES = 5
         blob = None
         largest_line_num = 0
         for _ in range(TEST_TIMES):
@@ -57,58 +92,56 @@ class MyEye():
                 blobs = self.img.find_blobs([RED_THRESHOLD, GREEN_THRESHOLD, BLUE_THRESHOLD], area_threshold=threshold)
                 if len(blobs):
                     blob = find_max_blob(blobs)
-                    if largest_line_num ==0:
-                        self.img.draw_rectangle(blob.rect()) # rect
-                        self.img.draw_cross(blob.cx(), blob.cy()) # cx, cy
 
                     sub_img = self.binary_img.copy(blob.rect())
                     line_count = 0
-                    for l in sub_img.find_lines(threshold = 5000):
+                    for l in sub_img.find_lines(threshold=5000):
                         line_count += 1
-                    #print(line_count)
+                    # print(line_count)
                     if line_count > largest_line_num:
                         largest_line_num = line_count
 
                     break
 
                 threshold -= gradient_descent
-        #if blob:
-        #    convexity = blob.convexity()
-        #    roundness = blob.roundness()
-        #    print("converxity: ", convexity, "roundness: ", roundness)
 
         if largest_line_num == 3:
-            x = blob.cx()
-            y = blob.cy()
-            #self.img.draw_rectangle(blob.rect(), color=(255, 0, 0))
-            #self.img.draw_cross(x, y, color=(0, 255, 0))
-            return "triangle", x, y
+            return "triangle", blob
         elif largest_line_num == 4:
-            #self.img.draw_rectangle(blob.rect(), color=(255, 0, 0))
-            x = blob.cx()
-            y = blob.cy()
-            #self.img.draw_cross(x, y, color=(0, 255, 0))
-            return "rectangle", x, y
+            return "rectangle", blob
         elif largest_line_num > 4:
-            x = blob.cx()
-            y = blob.cy()
-            r = blob.w()//2
-            #self.img.draw_circle(x, y, r, color=(255, 0, 0))
-            #self.img.draw_cross(x, y, color=(0, 255, 0))
-            return "circle", x, y
+            return "circle", blob
         else:
-            return None, None, None
+            return None, None
 
+    def parse_blob(self, shape, blob):
+        side_length = 0
+        x = blob.cx()
+        y = blob.cy()
+        perimeter = blob.perimeter()
+        self.img.draw_rectangle(blob.rect(), color=(255, 0, 0))
+        self.img.draw_cross(x, y, color=(0, 255, 0))
+
+        if (shape == "triangle"):
+            side_length = perimeter // 3
+        elif (shape == "rectangle"):
+            side_length = perimeter // 4
+        elif (shape == "circle"):
+            side_length = (blob.w() + blob.h()) // 2
+
+        return shape, x, y, side_length
+
+    def do_a_fixed_detection(self):
+        shape, blob = self.get_shape_and_blob()
+        if shape:
+            shape, x, y, side_length = self.parse_blob(shape, blob)
+            print("shape:", shape, "_____", "(x,y):", x, y, "_____", "side_length:", side_length)
+            return True
+        return False
 
 
 myEye = MyEye()
 
 while 1:
     myEye.update_img()
-
-    shape, x, y = myEye.get_shape_and_x_y()
-    if shape:
-        print(shape, x, y)
-
-    # myEye.release()
-    # break
+    myEye.do_a_fixed_detection()
