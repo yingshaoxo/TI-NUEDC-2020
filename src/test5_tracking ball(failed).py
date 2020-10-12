@@ -300,7 +300,9 @@ horizontal_servo.speed(-100)
 vertical_servo.speed(-100)
 
 horizontal_servo.angle(0)
-vertical_servo.angle(10)
+vertical_servo.angle(20)
+
+# sleep_ms(500)
 
 # pan_pid = PID(p=0.07, i=0, imax=90) #脱机运行或者禁用图像传输，使用这个PID
 # tilt_pid = PID(p=0.05, i=0, imax=90) #脱机运行或者禁用图像传输，使用这个PID
@@ -324,21 +326,12 @@ sensor.skip_frames(time=1000)
 
 WIDTH = sensor.width()
 HEIGHT = sensor.height()
-"""
-CROP_WIDTH = WIDTH
-CROP_HEIGHT = HEIGHT
+CROP_WIDTH = 50
+CROP_HEIGHT = 30
 TOP_LEFT_X = (WIDTH - CROP_WIDTH) // 2
 TOP_LEFT_Y = (HEIGHT - CROP_HEIGHT) // 2
 BOTTOM_RIGHT_X = TOP_LEFT_X + CROP_WIDTH
 BOTTOM_RIGHT_Y = TOP_LEFT_Y + CROP_HEIGHT
-"""
-TOP_LEFT_X = int(0.2 * WIDTH)
-TOP_LEFT_Y = int(0.2 * HEIGHT)
-CROP_WIDTH = int(0.2 * WIDTH)
-CROP_HEIGHT = int(0.25 * HEIGHT)
-BOTTOM_RIGHT_X = TOP_LEFT_X + CROP_WIDTH
-BOTTOM_RIGHT_Y = TOP_LEFT_Y + CROP_HEIGHT
-
 
 RED_THRESHOLD = (0, 100,   0, 127,   0, 127)  # L A B
 GREEN_THRESHOLD = (0, 100,   -128, 0,   0, 127)  # L A B
@@ -354,8 +347,6 @@ def find_max_blob(blobs):
     return max_blob
 
 
-THRESHOLD = 100
-EROSION_SIZE = 2
 class MyEye():
     def __init__(self) -> None:
         self.img = None
@@ -364,9 +355,7 @@ class MyEye():
     def update_img(self):
         gc.collect()
         self.img = sensor.snapshot().lens_corr(1.8).crop((TOP_LEFT_X, TOP_LEFT_Y, BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y), copy_to_fb=True)
-        #self.binary_img = self.img.copy().binary([(0, THRESHOLD)], invert=True, copy=False)
-        self.binary_img = self.img.binary([(0, THRESHOLD)], invert=True, copy=False)
-        #self.binary_img.erode(EROSION_SIZE)
+        self.binary_img = self.img.copy().binary([RED_THRESHOLD, GREEN_THRESHOLD, BLUE_THRESHOLD])
 
     def release(self):
         self.update_img()
@@ -398,8 +387,7 @@ class MyEye():
 
             threshold = white_board_area
             while threshold > 100:
-                #blobs = self.img.find_blobs([RED_THRESHOLD, GREEN_THRESHOLD, BLUE_THRESHOLD], area_threshold=threshold)
-                blobs = self.binary_img.find_blobs([(0, THRESHOLD)], area_threshold=threshold)
+                blobs = self.img.find_blobs([RED_THRESHOLD, GREEN_THRESHOLD, BLUE_THRESHOLD], area_threshold=threshold)
                 if len(blobs):
                     blob = find_max_blob(blobs)
 
@@ -429,8 +417,8 @@ class MyEye():
         x = blob.cx()
         y = blob.cy()
         perimeter = blob.perimeter()
-        self.img.draw_rectangle(blob.rect(), color=(0, 0, 0))
-        self.img.draw_cross(x, y, color=(255, 255, 255))
+        self.img.draw_rectangle(blob.rect(), color=(255, 0, 0))
+        self.img.draw_cross(x, y, color=(0, 255, 0))
 
         if (shape == "triangle"):
             side_length = perimeter // 3
@@ -466,13 +454,17 @@ class MyEye():
         lcd.write_string(0, 1, "shape: " + shape)
         lcd.write_string(0, 2, "distance: " + distance)
         lcd.write_string(0, 3, "中文测试：" + distance)
-        print("shape:", shape, "_____", "side_length:", side_length, "_____", "distance:", distance)
 
-    def find_white_box1(self):
+    def auto_crop_screen_based_on_white_color(self, returns=False):
+        global TOP_LEFT_X, TOP_LEFT_Y, BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y
+
         THRESHOLD = 100
         EROSION_SIZE = 2
-        #self.img = sensor.snapshot().lens_corr(1.8).crop((TOP_LEFT_X, TOP_LEFT_Y, BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y), copy_to_fb=True)
-        self.img = sensor.snapshot().lens_corr(1.8)
+
+        if returns == False:
+            self.img = sensor.snapshot().lens_corr(1.8)
+        else:
+            self.img = sensor.snapshot().lens_corr(1.8).crop((TOP_LEFT_X, TOP_LEFT_Y, BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y))
 
         img = self.img  # .copy()
         self.binary_img = img.binary([(0, THRESHOLD)], invert=True, copy=False)
@@ -487,91 +479,18 @@ class MyEye():
                 blob = find_max_blob(blobs)
                 self.img.draw_cross(blob.cx(), blob.cy(), color=(0, 0, 0), size=10, thickness=2)
                 self.img.draw_rectangle(blob.rect(), color=(255, 255, 255))
-                return blob.x(), blob.y(), blob.w(), blob.h(), blob.cx(), blob.cy()
+                if returns == False:
+                    CROP_WIDTH = blob.w()
+                    CROP_HEIGHT = blob.h()
+                    TOP_LEFT_X = blob.x()
+                    TOP_LEFT_Y = blob.y()
+                    BOTTOM_RIGHT_X = TOP_LEFT_X + CROP_WIDTH
+                    BOTTOM_RIGHT_Y = TOP_LEFT_Y + CROP_HEIGHT
+                else:
+                    return blob.cx(), blob.cy()
             area_threshold -= gradient_descent
-        return 0, 0, WIDTH, HEIGHT, WIDTH//2, HEIGHT//2
 
-    def find_white_box2(self):
-        THRESHOLD = 100
-        EROSION_SIZE = 2
-        #self.img = sensor.snapshot().lens_corr(1.8).crop((TOP_LEFT_X, TOP_LEFT_Y, BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y), copy_to_fb=True)
-        self.img = sensor.snapshot().lens_corr(1.8)
-
-        img = self.img  # .copy()
-        self.binary_img = img.binary([(0, THRESHOLD)], invert=True, copy=False)
-        self.binary_img.erode(EROSION_SIZE)
-
-        gradient_descent_ratio = 0.05
-        gh = int(HEIGHT * gradient_descent_ratio)  # gradient_descent_for_height
-        gw = int(WIDTH * gradient_descent_ratio)  # gradient_descent_for_width
-        mean_gate = int(255 * 0.6)
-
-        top = 0
-        left = 0
-        right = 0
-        bottom = 0
-        try:
-            for index in range(1//gradient_descent_ratio - 1):
-                #print(top, left, right, bottom)
-                count = 0
-                # top
-                mean = img.copy((left, top, WIDTH-right-left, gh)).get_statistics().mean()
-                if mean <= mean_gate:
-                    top = gh * (index+1)
-                else:
-                    count += 1
-                # left
-                mean = img.copy((left, top, gw, HEIGHT-bottom-top)).get_statistics().mean()
-                if mean <= mean_gate:
-                    left = gw * (index+1)
-                else:
-                    count += 1
-                # right
-                mean = img.copy((WIDTH-right-gw, top, gw, HEIGHT-bottom-top)).get_statistics().mean()
-                if mean <= mean_gate:
-                    right = gw * (index+1)
-                else:
-                    count += 1
-                # bottom
-                mean = img.copy((left, HEIGHT-bottom-gh, WIDTH-right-left, gh)).get_statistics().mean()
-                if mean <= mean_gate:
-                    bottom = gh * (index+1)
-                else:
-                    count += 1
-                if count == 4:
-                    break
-        except Exception as e:
-            # print(e)
-            pass
-
-        #self.img.draw_rectangle((left, top, WIDTH-left-right, HEIGHT-bottom-top), color=(255, 255, 255))
-        x = left
-        y = top
-        w = WIDTH-left-right
-        h = HEIGHT-bottom-top
-        if w == 0:
-            w = WIDTH
-        if h == 0:
-            h = HEIGHT
-        cx = w//2+left
-        cy = h//2+top
-        #print(x, y, w, h)
-        self.img.draw_cross(cx, cy, color=(0, 0, 0), size=10, thickness=2)
-        self.img.draw_rectangle((left, top, w, h), color=(0, 0, 0))
-        return left, top, w, h, cx, cy
-
-    def set_screen_cropping_args(self, x, y, w, h):
-        global TOP_LEFT_X, TOP_LEFT_Y, CROP_WIDTH, CROP_HEIGHT, BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y
-        TOP_LEFT_X = x
-        TOP_LEFT_Y = y
-        CROP_WIDTH = w
-        CROP_HEIGHT = h
-        BOTTOM_RIGHT_X = TOP_LEFT_X + CROP_WIDTH
-        BOTTOM_RIGHT_Y = TOP_LEFT_Y + CROP_HEIGHT
-
-    def auto_crop_screen_based_on_white_color(self):
-        x, y, w, h, cx, cy = self.find_white_box1()
-        self.set_screen_cropping_args(x, y, w, h)
+        return None, None
 
     def tracking_a_point(self, x, y):
         TOP_LEFT_X = (WIDTH - CROP_WIDTH) // 2
@@ -596,33 +515,45 @@ class MyEye():
         shape, blob = self.get_shape_and_blob()
         if shape:
             shape, x, y, side_length = self.parse_blob(shape, blob)
-            #self.tracking_a_point(x, y)
-            self.display_info(side_length, shape, 0)
+            self.tracking_a_point(x, y)
 
-    def tracking_white_board_by_using_distance_sensor(self):
-        left_min = 30
-        right_max = -30
-        step = 3
-        horizontal_servo.angle(left_min)
-        i = left_min
-        while True:
-            distance_sensor.measure_once()
-            distance = distance_sensor.read_result()
-            if distance:
-                if 2 <= distance <= 3.1:
-                    #horizontal_servo.angle(i+10)
-                    break
-                horizontal_servo.angle(i)
-                sleep_ms(10)
-                i -= step
-            if i < right_max:
-                break
+    def tracking_white(self):
+        self.update_img()
+        x, y = self.auto_crop_screen_based_on_white_color(returns=True)
+        if x:
+            self.tracking_a_point(x, y)
+
+    def tracking_a_ball(self):
+        THRESHOLD = 100
+        EROSION_SIZE = 2
+        self.img = sensor.snapshot().lens_corr(1.8).crop((TOP_LEFT_X, TOP_LEFT_Y, BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y), copy_to_fb=True)
+
+        img = self.img  # .copy()
+        self.binary_img = img.binary([(0, THRESHOLD)], invert=True, copy=False)
+        self.binary_img.erode(25)
+        #self.binary_img.dilate(1, threshold=10)
+
+        full_area = CROP_HEIGHT * CROP_WIDTH
+        gradient_descent = int(full_area * 0.1)
+        area_threshold = full_area
+        while area_threshold > 100:
+            blobs = self.binary_img.find_circles(threshold=area_threshold)
+            if len(blobs):
+                blob = find_max_blob(blobs)
+                self.img.draw_cross(blob.x(), blob.y(), color=(0, 0, 0), size=10, thickness=2)
+                self.img.draw_circle(blob.x(), blob.y(), blob.r(), color=(0, 0, 0))
+                #self.img.draw_rectangle(blob.rect(), color=(0, 0, 0))
+                return True
+            area_threshold -= gradient_descent
+        return False
 
 
 myEye = MyEye()
-myEye.tracking_white_board_by_using_distance_sensor()
+#myEye.auto_crop_screen_based_on_white_color()
+myEye.tracking_white()
+
 while 1:
-    myEye.update_img()
-    myEye.tracking_an_object()
-    #myEye.tracking_white_board_by_using_distance_sensor()
+    # myEye.auto_crop_screen_based_on_white_color()
     # myEye.do_a_fixed_detection()
+    myEye.tracking_a_ball()
+    gc.collect()

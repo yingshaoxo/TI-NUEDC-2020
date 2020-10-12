@@ -302,8 +302,6 @@ vertical_servo.speed(-100)
 horizontal_servo.angle(0)
 vertical_servo.angle(20)
 
-#sleep_ms(500)
-
 #pan_pid = PID(p=0.07, i=0, imax=90) #脱机运行或者禁用图像传输，使用这个PID
 #tilt_pid = PID(p=0.05, i=0, imax=90) #脱机运行或者禁用图像传输，使用这个PID
 pan_pid = PID(p=0.1, i=0, imax=90)#在线调试使用这个PID

@@ -443,13 +443,13 @@ class MyEye():
             return True
         return False
 
-    def auto_crop_screen_based_on_white_color(self):
+    def find_white_box1(self):
         THRESHOLD = 100
         EROSION_SIZE = 2
         #self.img = sensor.snapshot().lens_corr(1.8).crop((TOP_LEFT_X, TOP_LEFT_Y, BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y), copy_to_fb=True)
         self.img = sensor.snapshot().lens_corr(1.8)
 
-        img = self.img#.copy()
+        img = self.img  # .copy()
         self.binary_img = img.binary([(0, THRESHOLD)], invert=True, copy=False)
         self.binary_img.erode(EROSION_SIZE)
 
@@ -460,17 +460,94 @@ class MyEye():
             blobs = img.find_blobs([(25, 255)], area_threshold=area_threshold)
             if len(blobs):
                 blob = find_max_blob(blobs)
-                self.img.draw_cross(blob.cx(), blob.cy(), color=(0, 0, 0), size=10 , thickness=2)
+                self.img.draw_cross(blob.cx(), blob.cy(), color=(0, 0, 0), size=10, thickness=2)
                 self.img.draw_rectangle(blob.rect(), color=(255, 255, 255))
-                CROP_WIDTH = blob.w()
-                CROP_HEIGHT = blob.h()
-                TOP_LEFT_X = blob.x()
-                TOP_LEFT_Y = blob.y()
-                BOTTOM_RIGHT_X = TOP_LEFT_X + CROP_WIDTH
-                BOTTOM_RIGHT_Y = TOP_LEFT_Y + CROP_HEIGHT
-                break
+                return blob.x(), blob.y(), blob.w(), blob.h(), blob.cx(), blob.cy()
             area_threshold -= gradient_descent
-    
+        return 0, 0, WIDTH, HEIGHT, WIDTH//2, HEIGHT//2
+
+    def find_white_box2(self):
+        THRESHOLD = 100
+        EROSION_SIZE = 2
+        #self.img = sensor.snapshot().lens_corr(1.8).crop((TOP_LEFT_X, TOP_LEFT_Y, BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y), copy_to_fb=True)
+        self.img = sensor.snapshot().lens_corr(1.8)
+
+        img = self.img  # .copy()
+        self.binary_img = img.binary([(0, THRESHOLD)], invert=True, copy=False)
+        self.binary_img.erode(EROSION_SIZE)
+
+        gradient_descent_ratio = 0.05
+        gh = int(HEIGHT * gradient_descent_ratio)  # gradient_descent_for_height
+        gw = int(WIDTH * gradient_descent_ratio)  # gradient_descent_for_width
+        mean_gate = int(255 * 0.6)
+
+        top = 0
+        left = 0
+        right = 0
+        bottom = 0
+        try:
+            for index in range(1//gradient_descent_ratio - 1):
+                #print(top, left, right, bottom)
+                count = 0
+                # top
+                mean = img.copy((left, top, WIDTH-right-left, gh)).get_statistics().mean()
+                if mean <= mean_gate:
+                    top = gh * (index+1)
+                else:
+                    count += 1
+                # left
+                mean = img.copy((left, top, gw, HEIGHT-bottom-top)).get_statistics().mean()
+                if mean <= mean_gate:
+                    left = gw * (index+1)
+                else:
+                    count += 1
+                # right
+                mean = img.copy((WIDTH-right-gw, top, gw, HEIGHT-bottom-top)).get_statistics().mean()
+                if mean <= mean_gate:
+                    right = gw * (index+1)
+                else:
+                    count += 1
+                # bottom
+                mean = img.copy((left, HEIGHT-bottom-gh, WIDTH-right-left, gh)).get_statistics().mean()
+                if mean <= mean_gate:
+                    bottom = gh * (index+1)
+                else:
+                    count += 1
+                if count == 4:
+                    break
+        except Exception as e:
+            # print(e)
+            pass
+
+        #self.img.draw_rectangle((left, top, WIDTH-left-right, HEIGHT-bottom-top), color=(255, 255, 255))
+        x = left
+        y = top
+        w = WIDTH-left-right
+        h = HEIGHT-bottom-top
+        if w == 0:
+            w = WIDTH
+        if h == 0:
+            h = HEIGHT
+        cx = w//2+left
+        cy = h//2+top
+        #print(x, y, w, h)
+        self.img.draw_cross(cx, cy, color=(0, 0, 0), size=10, thickness=2)
+        self.img.draw_rectangle((left, top, w, h), color=(0, 0, 0))
+        return left, top, w, h, cx, cy
+
+    def set_screen_cropping_args(self, x, y, w, h):
+        global TOP_LEFT_X, TOP_LEFT_Y, CROP_WIDTH, CROP_HEIGHT, BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y
+        TOP_LEFT_X = x
+        TOP_LEFT_Y = y
+        CROP_WIDTH = w
+        CROP_HEIGHT = h
+        BOTTOM_RIGHT_X = TOP_LEFT_X + CROP_WIDTH
+        BOTTOM_RIGHT_Y = TOP_LEFT_Y + CROP_HEIGHT
+
+    def auto_crop_screen_based_on_white_color(self):
+        x, y, w, h, cx, cy = self.find_white_box1()
+        self.set_screen_cropping_args(x, y, w, h)
+
     def display_info(self, side_length, shape, distance):
         side_length = str(side_length)
         distance = str(distance)
@@ -485,4 +562,4 @@ myEye = MyEye()
 
 while 1:
     myEye.auto_crop_screen_based_on_white_color()
-    #myEye.do_a_fixed_detection()
+    # myEye.do_a_fixed_detection()
