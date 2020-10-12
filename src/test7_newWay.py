@@ -308,8 +308,6 @@ class OpenSmart_LCD():
 lcd = OpenSmart_LCD()
 
 
-
-
 #######################
 # The camare
 #######################
@@ -334,10 +332,10 @@ TOP_LEFT_Y = (HEIGHT - CROP_HEIGHT) // 2
 BOTTOM_RIGHT_X = TOP_LEFT_X + CROP_WIDTH
 BOTTOM_RIGHT_Y = TOP_LEFT_Y + CROP_HEIGHT
 """
-TOP_LEFT_X = int(0.2 * WIDTH)
-TOP_LEFT_Y = int(0.2 * HEIGHT)
-CROP_WIDTH = int(0.2 * WIDTH)
-CROP_HEIGHT = int(0.25 * HEIGHT)
+TOP_LEFT_X = int(0.25 * WIDTH)
+TOP_LEFT_Y = int(0.25 * HEIGHT)
+CROP_WIDTH = int(0.15 * WIDTH)
+CROP_HEIGHT = int(0.15 * HEIGHT)
 BOTTOM_RIGHT_X = TOP_LEFT_X + CROP_WIDTH
 BOTTOM_RIGHT_Y = TOP_LEFT_Y + CROP_HEIGHT
 
@@ -358,85 +356,82 @@ def find_max_blob(blobs):
 
 THRESHOLD = 100
 EROSION_SIZE = 2
+
+
 class MyEye():
     def __init__(self) -> None:
         self.img = None
         self.binary_img = None
 
     def update_img(self):
-        gc.collect()
-        self.img = sensor.snapshot().lens_corr(1.8).crop((TOP_LEFT_X, TOP_LEFT_Y, BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y), copy_to_fb=True)
-        #self.binary_img = self.img.copy().binary([(0, THRESHOLD)], invert=True, copy=False)
-        self.binary_img = self.img.binary([(0, THRESHOLD)], invert=True, copy=False)
-        self.binary_img.find_edges(image.EDGE_CANNY) # None
-        #self.binary_img.erode(EROSION_SIZE)
+        self.img = sensor.snapshot().lens_corr(1.8)
+        self.img = self.img.crop((TOP_LEFT_X, TOP_LEFT_Y, BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y), copy_to_fb=False)
 
     def get_shape_and_blob(self):
-        shape_list = []
-        last_blob = None
-        accurate_shape = None
-        for _ in range(10): 
+        counting_times = 10
+        a = 0
+        b = 0
+        c = 0
+        last_a = None
+        last_b = None
+        last_c = None
+        for _ in range(counting_times):
             shape, blob = self.get_shape_and_blob_raw()
-            if shape:
-                shape_list.append(shape)
-                last_blob = blob
-        if "circle" in shape_list:  # if there has any circle, it's circle
-            accurate_shape = "circle"
-        elif "rectangle" in shape_list:  # if there has any rectangle and no circle, it's rectangle
-            accurate_shape = "rectangle"
-        elif "triangle" in shape_list:  # if all of them are triangle, it's triangle
-            accurate_shape = "triangle"
-        return accurate_shape, last_blob
-
+            if shape == "circle":
+                a += 1
+                last_a = blob
+            if shape == "rectangle":
+                b += 1
+                last_b = blob
+            if shape == "triangle":
+                c += 1
+                last_c = blob
+            last_blob = blob
+        if a > b and a > c:
+            return "circle", last_a
+        elif b > a and b > c:
+            return "rectangle", last_b
+        elif c > a and c > b:
+            return "triangle", last_c
+        return None, None
+                
     def get_shape_and_blob_raw(self):
-        TEST_TIMES = 5
-        blob = None
-        largest_line_num = 0
-        for _ in range(TEST_TIMES):
-            white_board_area = CROP_HEIGHT * CROP_WIDTH
-            gradient_descent = int(white_board_area * 0.1)
+        white_board_area = CROP_HEIGHT * CROP_WIDTH
+        gradient_descent = int(white_board_area * 0.1)
 
-            threshold = white_board_area
-            while threshold > 100:
-                #blobs = self.img.find_blobs([RED_THRESHOLD, GREEN_THRESHOLD, BLUE_THRESHOLD], area_threshold=threshold)
-                blobs = self.binary_img.find_blobs([(0, THRESHOLD)], area_threshold=threshold)
-                if len(blobs):
-                    blob = find_max_blob(blobs)
+        threshold = white_board_area
+        while threshold > 100:
+            self.update_img()
+            binary_img = self.img.binary([(0, THRESHOLD)], invert=True, copy=False)
+            binary_img.erode(EROSION_SIZE)
+            blobs = binary_img.find_blobs([RED_THRESHOLD, GREEN_THRESHOLD, BLUE_THRESHOLD], area_threshold=threshold)
+            #blobs = self.img.find_blobs([(12, THRESHOLD)], area_threshold=threshold)
+            if len(blobs):
+                blob = find_max_blob(blobs)
 
-                    self.img.draw_rectangle(blob.rect(), color=(0, 0, 0))
-                    self.img.draw_cross(blob.cx(), blob.cy(), color=(255, 255, 255))
+                self.img.draw_cross(blob.cx(), blob.cy(), color=(255, 255, 255), thickness=3)
+                self.img.draw_rectangle((blob.x(), blob.y(), blob.w(), blob.h()), color=(0, 0, 0), thickness=3
 
-                    sub_img = self.binary_img.copy(blob.rect())
-                    sub_img.dilate(3)
-                    #sub_img.find_edges(image.EDGE_CANNY) # None
-                    line_count = 0
-                    for l in sub_img.find_lines(threshold=6000): # 5000
-                        line_count += 1
-                    # print(line_count)
-                    print(line_count)
-                    if line_count > largest_line_num:
-                        largest_line_num = line_count
+                print( "roundness: ", blob.roundness(), "     solidity: ", blob.solidity())
+                solidity = blob.solidity()
+                if (solidity > 0.9):
+                    return "rectangle", blob
+                elif (0.78 < solidity < 0.9):
+                    return "circle", blob
+                elif (solidity < 0.78):
+                    return "triangle", blob
 
-                    break
+            threshold -= gradient_descent
 
-                threshold -= gradient_descent
-
-        if largest_line_num == 3:
-            return "triangle", blob
-        elif largest_line_num == 4:
-            return "rectangle", blob
-        elif largest_line_num > 4:
-            return "circle", blob
-        else:
-            return None, None
+        return None, None
 
     def parse_blob(self, shape, blob):
         side_length = 0
-        x = blob.cx()
-        y = blob.cy()
+        x = blob.cx() + TOP_LEFT_X
+        y = blob.cy() + TOP_LEFT_Y
         perimeter = blob.perimeter()
-        self.img.draw_rectangle(blob.rect(), color=(0, 0, 0))
-        self.img.draw_cross(x, y, color=(255, 255, 255))
+        self.img.draw_rectangle(blob.rect(), color=(255, 255, 255))
+        self.img.draw_cross(x, y, color=(0, 0, 0))
 
         if (shape == "triangle"):
             side_length = perimeter // 3
@@ -476,18 +471,17 @@ class MyEye():
     def find_white_box1(self):
         THRESHOLD = 100
         EROSION_SIZE = 2
-        #self.img = sensor.snapshot().lens_corr(1.8).crop((TOP_LEFT_X, TOP_LEFT_Y, BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y), copy_to_fb=True)
-        self.img = sensor.snapshot().lens_corr(1.8)
 
-        img = self.img  # .copy()
-        self.binary_img = img.binary([(0, THRESHOLD)], invert=True, copy=False)
-        self.binary_img.erode(EROSION_SIZE)
+        img = self.update_img()
+
+        binary_img = img.binary([(0, THRESHOLD)], invert=True, copy=False)
+        binary_img.erode(EROSION_SIZE)
 
         full_area = HEIGHT * WIDTH
         gradient_descent = int(full_area * 0.1)
         area_threshold = full_area
         while area_threshold > 100:
-            blobs = img.find_blobs([(25, 255)], area_threshold=area_threshold)
+            blobs = binary_img.find_blobs([(25, 255)], area_threshold=area_threshold)
             if len(blobs):
                 blob = find_max_blob(blobs)
                 self.img.draw_cross(blob.cx(), blob.cy(), color=(0, 0, 0), size=10, thickness=2)
@@ -499,12 +493,10 @@ class MyEye():
     def find_white_box2(self):
         THRESHOLD = 100
         EROSION_SIZE = 2
-        #self.img = sensor.snapshot().lens_corr(1.8).crop((TOP_LEFT_X, TOP_LEFT_Y, BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y), copy_to_fb=True)
-        self.img = sensor.snapshot().lens_corr(1.8)
+        self.update_img()
 
-        img = self.img  # .copy()
-        self.binary_img = img.binary([(0, THRESHOLD)], invert=True, copy=False)
-        self.binary_img.erode(EROSION_SIZE)
+        binary_img = self.img.copy().binary([(0, THRESHOLD)], invert=True, copy=False)
+        binary_img.erode(EROSION_SIZE)
 
         gradient_descent_ratio = 0.05
         gh = int(HEIGHT * gradient_descent_ratio)  # gradient_descent_for_height
@@ -520,25 +512,25 @@ class MyEye():
                 #print(top, left, right, bottom)
                 count = 0
                 # top
-                mean = img.copy((left, top, WIDTH-right-left, gh)).get_statistics().mean()
+                mean = self.img.copy((left, top, WIDTH-right-left, gh)).get_statistics().mean()
                 if mean <= mean_gate:
                     top = gh * (index+1)
                 else:
                     count += 1
                 # left
-                mean = img.copy((left, top, gw, HEIGHT-bottom-top)).get_statistics().mean()
+                mean = self.img.copy((left, top, gw, HEIGHT-bottom-top)).get_statistics().mean()
                 if mean <= mean_gate:
                     left = gw * (index+1)
                 else:
                     count += 1
                 # right
-                mean = img.copy((WIDTH-right-gw, top, gw, HEIGHT-bottom-top)).get_statistics().mean()
+                mean = self.img.copy((WIDTH-right-gw, top, gw, HEIGHT-bottom-top)).get_statistics().mean()
                 if mean <= mean_gate:
                     right = gw * (index+1)
                 else:
                     count += 1
                 # bottom
-                mean = img.copy((left, HEIGHT-bottom-gh, WIDTH-right-left, gh)).get_statistics().mean()
+                mean = self.img.copy((left, HEIGHT-bottom-gh, WIDTH-right-left, gh)).get_statistics().mean()
                 if mean <= mean_gate:
                     bottom = gh * (index+1)
                 else:
@@ -549,7 +541,6 @@ class MyEye():
             # print(e)
             pass
 
-        #self.img.draw_rectangle((left, top, WIDTH-left-right, HEIGHT-bottom-top), color=(255, 255, 255))
         x = left
         y = top
         w = WIDTH-left-right
@@ -560,22 +551,46 @@ class MyEye():
             h = HEIGHT
         cx = w//2+left
         cy = h//2+top
-        #print(x, y, w, h)
-        self.img.draw_cross(cx, cy, color=(0, 0, 0), size=10, thickness=2)
-        self.img.draw_rectangle((left, top, w, h), color=(0, 0, 0))
+        #self.img.draw_cross(cx, cy, color=(0, 0, 0), size=10, thickness=2)
+        #self.img.draw_rectangle((left, top, w, h), color=(0, 0, 0))
         return left, top, w, h, cx, cy
+
+    def find_white_box3(self):
+        white_board_area = CROP_HEIGHT * CROP_WIDTH
+        gradient_descent = int(white_board_area * 0.1)
+        the_blob = None
+
+        img = self.update_img()
+        binary_img = self.img.binary([(0, THRESHOLD)], invert=True, copy=False)
+        binary_img.erode(EROSION_SIZE)
+
+        threshold = white_board_area
+        while threshold > 100:
+            blobs = binary_img.find_blobs([(0, THRESHOLD)], area_threshold=threshold)
+            for blob in blobs:
+                if (binary_img.invert().find_blobs([(0, THRESHOLD)], roi=blob.rect())):
+                    the_blob = blob
+
+            threshold -= gradient_descent
+
+        blob = the_blob
+        if the_blob:
+            self.img.draw_cross(blob.cx(), blob.cy(), color=(0, 0, 0), size=10, thickness=2)
+            self.img.draw_rectangle(blob.rect(), color=(255, 255, 255))
+            return blob.x(), blob.y(), blob.w(), blob.h(), blob.cx(), blob.cy()
+        return 0, 0, WIDTH, HEIGHT, WIDTH//2, HEIGHT//2
 
     def set_screen_cropping_args(self, x, y, w, h):
         global TOP_LEFT_X, TOP_LEFT_Y, CROP_WIDTH, CROP_HEIGHT, BOTTOM_RIGHT_X, BOTTOM_RIGHT_Y
-        TOP_LEFT_X = x
-        TOP_LEFT_Y = y
+        TOP_LEFT_X += x
+        TOP_LEFT_Y += y
         CROP_WIDTH = w
         CROP_HEIGHT = h
         BOTTOM_RIGHT_X = TOP_LEFT_X + CROP_WIDTH
         BOTTOM_RIGHT_Y = TOP_LEFT_Y + CROP_HEIGHT
 
-    def auto_crop_screen_based_on_white_color(self):
-        x, y, w, h, cx, cy = self.find_white_box1()
+    def update_crop_box_based_on_white_color(self):
+        x, y, w, h, cx, cy = self.find_white_box2()
         self.set_screen_cropping_args(x, y, w, h)
 
     def tracking_a_point(self, x, y):
@@ -624,8 +639,39 @@ class MyEye():
             distance = distance_sensor.read_result()
             if distance:
                 if 2 <= distance <= 3.1:
-                    #horizontal_servo.angle(i+10)
+                    # horizontal_servo.angle(i+10)
                     break
+                horizontal_servo.angle(i)
+                sleep_ms(10)
+                i -= step
+            if i < right_max:
+                break
+
+    def tracking_white_board_by_using_distance_sensor2(self, degree=30):
+        self.reset_servo()
+
+        left_min = degree
+        right_max = -degree
+        step = 3
+        horizontal_servo.angle(left_min)
+        i = left_min
+        while True:
+            self.update_img()
+            distance_sensor.measure_once()
+            distance = distance_sensor.read_result()
+            if distance:
+                if 2 <= distance <= 3.1:
+                    now = distance
+                    while True:
+                        self.update_img()
+                        distance_sensor.measure_once()
+                        distance = distance_sensor.read_result()
+                        if distance:
+                            if now > distance:
+                                return
+                        i -= step
+                        if i < right_max:
+                            return
                 horizontal_servo.angle(i)
                 sleep_ms(10)
                 i -= step
@@ -639,21 +685,26 @@ class MyEye():
 
 BUTTON_STATE = 0
 
+
 def ResetButtonState():
     global BUTTON_STATE
     BUTTON_STATE = 0
+
 
 def Button1Callback(e):
     global BUTTON_STATE
     BUTTON_STATE = 1
 
+
 def Button2Callback(e):
     global BUTTON_STATE
     BUTTON_STATE = 2
 
+
 def Button3Callback(e):
     global BUTTON_STATE
     BUTTON_STATE = 3
+
 
 ExtInt(Pin('P2'), ExtInt.IRQ_RISING, Pin.PULL_UP, Button1Callback)
 ExtInt(Pin('P3'), ExtInt.IRQ_RISING, Pin.PULL_UP, Button2Callback)
@@ -663,6 +714,7 @@ ExtInt(Pin('P6'), ExtInt.IRQ_RISING, Pin.PULL_UP, Button3Callback)
 # The task manager
 #######################
 
+
 class TaskManager():
     def __init__(self) -> None:
         self.myEye = MyEye()
@@ -670,23 +722,13 @@ class TaskManager():
 
     def task1(self):
         print("task1 start...")
-        self.myEye.tracking_white_board_by_using_distance_sensor(degree=30)
-        #self.myEye.do_a_fixed_detection()
-        shape, x, y, side_length = self.myEye.tracking_an_object()
-        if shape:
-            #for _ in range(20):
-            #    x, y, w, h, cx, cy = self.myEye.find_white_box1()
-            #    self.myEye.tracking_a_point(x, y)
-            #for _ in range(20):
-            #    self.myEye.tracking_an_object()
+        self.myEye.tracking_white_board_by_using_distance_sensor2(degree=30)
+        print("white board tracing finished...")
 
-            distance_sensor.measure_once()
-            distance = distance_sensor.read_result()
-
-            self.myEye.display_info(side_length, shape, distance)
-
-            self.done = True
+        if self.myEye.do_a_fixed_detection():
+            taskManager.done = True
         print("task1 finished")
+
 
 taskManager = TaskManager()
 while 1:
