@@ -1,6 +1,7 @@
 import utime
 import pyb
 import ubinascii
+import ujson
 
 def bytes_to_hex(a_byte):
     return str(ubinascii.hexlify(a_byte))[2:-1]
@@ -159,7 +160,35 @@ class OpenSmart_LCD():
 if __name__ == "__main__":
     lcd = OpenSmart_LCD()
 
-    while(True):
-        for key, value in lcd.color_table.items():
-            lcd.fill_screen(value)
-            lcd.wait(1)
+    with open("font_pixels.json", "r") as f:
+        text = f.read()
+    font_dict = ujson.loads(text)
+
+    def print_text(y, x, string):
+        W = 320
+        H = 240
+        fh = len(list(font_dict.values())[0])
+        fw = len(list(font_dict.values())[0][0])
+        m = 2
+        rows = 4
+        columns = W//(fw+m)
+        start_y = H // rows * y
+        start_x = (fw+m) * x
+        real_y = start_y + y
+        real_x = start_x + x
+        for char_index, char in enumerate(string):
+            if char in font_dict.keys():
+                char_array = font_dict[char]
+                for row_index, row in enumerate(char_array):
+                    for column_index, value in enumerate(row):
+                        if value == 1:
+                            lcd.draw_pixel(real_x +  (fw+m)*char_index  + column_index, real_y + row_index)
+    
+    print_text(0, 0, "正方形")
+    print_text(1, 0, "球")
+    print_text(2, 0, "三角形")
+
+    #while(True):
+    #    for key, value in lcd.color_table.items():
+    #        lcd.fill_screen(value)
+    #        lcd.wait(1)
