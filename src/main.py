@@ -387,7 +387,7 @@ class MyEye():
             if shape == "circle":
                 a += 1
                 last_a = blob
-            if shape == "rectangle":
+            if shape == "square":
                 b += 1
                 last_b = blob
             if shape == "triangle":
@@ -397,7 +397,7 @@ class MyEye():
         if a > b and a > c:
             return "circle", last_a
         elif b > a and b > c:
-            return "rectangle", last_b
+            return "square", last_b
         elif c > a and c > b:
             return "triangle", last_c
         return None, None
@@ -422,7 +422,7 @@ class MyEye():
                 #print( "roundness: ", blob.roundness(), "     solidity: ", blob.solidity())
                 solidity = blob.solidity()
                 if (solidity > 0.9):
-                    return "rectangle", blob
+                    return "square", blob
                 elif (0.78 < solidity < 0.9):
                     return "circle", blob
                 elif (solidity < 0.78):
@@ -442,8 +442,7 @@ class MyEye():
 
         if (shape == "triangle"):
             side_length = perimeter // 3
-        elif (shape == "rectangle"):
-            shape = "square"
+        elif (shape == "square"):
             side_length = perimeter // 4
         elif (shape == "circle"):
             side_length = (blob.w() + blob.h()) // 2
@@ -457,23 +456,25 @@ class MyEye():
             shape, x, y, side_length = self.parse_blob(shape, blob)
             print("shape:", shape, "_____", "(x,y):", x, y, "_____", "side_length:", side_length)
 
-            distance_sensor.measure_once()
-            distance = distance_sensor.read_result()
+            distance = None
+            while distance == None:
+                distance_sensor.measure_once()
+                distance = distance_sensor.read_result()
             print("distance: ", distance)
-            #distance = 0.008
 
+            side_length = 1.0222*distance*side_length
             self.display_info(side_length, shape, distance)
 
             return True
         return False
 
     def display_info(self, side_length, shape, distance):
-        side_length = str(side_length)
+        side_length = str(side_length/10)
         distance = str(distance)
         lcd.fill_screen()
-        lcd.write_string(0, 0, "side length: " + "35")
+        lcd.write_string(0, 0, "side length or diameter: " + side_length + " cm")
         lcd.write_string(0, 1, "shape: " + shape)
-        lcd.write_string(0, 2, "distance: " + distance)
+        lcd.write_string(0, 2, "distance: " + distance + " m")
         print("shape:", shape, "_____", "side_length:", side_length, "_____", "distance:", distance)
 
     def find_white_box1(self):
