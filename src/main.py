@@ -861,8 +861,35 @@ class MyEye():
         football: 足球
         volleyball: 排球
         """
-        print("recognize_ball")
-        lcd.write_string(0, 3, "type:" + "volleyball" + " , " + "distance:" + "2.762")
+        self.update_img()
+        lcd.fill_screen()
+        shape = None
+        while shape == None:
+            shape, blob = self.get_shape_and_blob()
+            if shape:
+                shape, x, y, side_length = self.parse_blob(shape, blob)
+
+                print("density: ", blob.density())
+                print("solidity: ", blob.solidity())
+
+                solidity = blob.solidity()
+                if solidity >= 0.7:
+                    type_ = "basketball"
+                elif 0.5 < solidity < 0.7:
+                    type_ = "volleyball"
+                elif solidity <= 0.5:
+                    type_ = "football"
+                
+                distance = None
+                while distance == None:
+                    distance_sensor.measure_once()
+                    distance = distance_sensor.read_result()
+                print("distance: ", distance)
+
+                lcd.write_string(0, 2, "distance: " + str(distance) + " m")
+                lcd.write_string(0, 3, "type: " + type_)
+                return True
+        return False
 
 
 #######################
@@ -879,14 +906,14 @@ def ResetButtonState():
 
 def Button1Callback(e):
     global BUTTON_STATE
-    sleep_ms(100)
+    sleep_ms(500)
     if (Pin('P2').value()):
         BUTTON_STATE = 1
 
 
 def Button2Callback(e):
     global BUTTON_STATE, TASK_3
-    sleep_ms(100)
+    sleep_ms(500)
     if (Pin('P6').value()):
         if TASK_3:
             TASK_3 = False
@@ -936,8 +963,8 @@ class TaskManager():
         self.myEye.tracking_white_board_by_using_distance_sensor3()
         print("white board tracing finished...")
 
-        for _ in range(10):
-            self.myEye.tracking_an_object()
+        #for _ in range(10):
+        #    self.myEye.tracking_an_object()
 
         if self.myEye.do_a_fixed_detection():
             distance_sensor.open_laser()
@@ -950,8 +977,8 @@ class TaskManager():
         self.myEye.tracking_white_board_by_using_distance_sensor3()
         print("white board tracing finished...")
 
-        for _ in range(10):
-            self.myEye.tracking_an_object()
+        #for _ in range(10):
+        #    self.myEye.tracking_an_object()
 
         if self.myEye.do_a_fixed_detection():
             distance_sensor.open_laser()
