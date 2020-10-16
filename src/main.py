@@ -944,6 +944,9 @@ def Button2Callback(e):
 
 ExtInt(Pin('P2'), ExtInt.IRQ_RISING, Pin.PULL_UP, Button1Callback)
 ExtInt(Pin('P6'), ExtInt.IRQ_RISING, Pin.PULL_UP, Button2Callback)
+distance_sensor.open_laser()
+sleep_ms(2000)
+BUTTON_STATE = 0
 
 #######################
 # The task manager
@@ -1016,7 +1019,6 @@ class TaskManager():
 
 
 taskManager = TaskManager()
-distance_sensor.open_laser()
 taskManager.myEye.show_sound_and_light_once()
 while 1:
     if BUTTON_STATE == 1:
