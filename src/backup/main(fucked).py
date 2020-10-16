@@ -12,7 +12,7 @@ from pid import PID
 # The servo
 #######################
 horizontal_servo = Servo(1)   # create a servo object on position P7
-vertical_servo = Servo(2)   # create a servo object on position P8
+#vertical_servo = Servo(2)   # create a servo object on position P8
 horizontal_servo.speed(-100)
 vertical_servo.speed(-100)
 
@@ -20,8 +20,8 @@ horizontal_servo.angle(0)
 vertical_servo.angle(10)
 
 
-pan_pid = PID(p=0.07, i=0, imax=90) #脱机运行或者禁用图像传输，使用这个PID
-tilt_pid = PID(p=0.05, i=0, imax=90) #脱机运行或者禁用图像传输，使用这个PID
+pan_pid = PID(p=0.07, i=0, imax=90)  # 脱机运行或者禁用图像传输，使用这个PID
+tilt_pid = PID(p=0.05, i=0, imax=90)  # 脱机运行或者禁用图像传输，使用这个PID
 """
 pan_pid = PID(p=0.1, i=0, imax=90)  # 在线调试使用这个PID
 tilt_pid = PID(p=0.1, i=0, imax=90)  # 在线调试使用这个PID
@@ -387,7 +387,7 @@ class MyEye():
             if shape == "circle":
                 a += 1
                 last_a = blob
-            if shape == "rectangle":
+            if shape == "square":
                 b += 1
                 last_b = blob
             if shape == "triangle":
@@ -397,11 +397,11 @@ class MyEye():
         if a > b and a > c:
             return "circle", last_a
         elif b > a and b > c:
-            return "rectangle", last_b
+            return "square", last_b
         elif c > a and c > b:
             return "triangle", last_c
         return None, None
-                
+
     def get_shape_and_blob_raw(self):
         white_board_area = CROP_HEIGHT * CROP_WIDTH
         gradient_descent = int(white_board_area * 0.1)
@@ -422,7 +422,7 @@ class MyEye():
                 #print( "roundness: ", blob.roundness(), "     solidity: ", blob.solidity())
                 solidity = blob.solidity()
                 if (solidity > 0.9):
-                    return "rectangle", blob
+                    return "square", blob
                 elif (0.78 < solidity < 0.9):
                     return "circle", blob
                 elif (solidity < 0.78):
@@ -441,12 +441,11 @@ class MyEye():
         self.img.draw_cross(x, y, color=(0, 0, 0))
 
         if (shape == "triangle"):
-            side_length = perimeter // 3
-        elif (shape == "rectangle"):
-            shape = "square"
-            side_length = perimeter // 4
+            side_length = 0.8191146*perimeter // 3
+        elif (shape == "square"):
+            side_length = 0.7889620*perimeter // 4
         elif (shape == "circle"):
-            side_length = (blob.w() + blob.h()) // 2
+            side_length = 0.8849540*(blob.w() + blob.h()) // 2
 
         return shape, x, y, side_length
 
@@ -457,23 +456,30 @@ class MyEye():
             shape, x, y, side_length = self.parse_blob(shape, blob)
             print("shape:", shape, "_____", "(x,y):", x, y, "_____", "side_length:", side_length)
 
-            distance_sensor.measure_once()
-            distance = distance_sensor.read_result()
+            distance = None
+            while distance == None:
+                distance_sensor.measure_once()
+                distance = distance_sensor.read_result()
             print("distance: ", distance)
-            #distance = 0.008
 
+            side_length = distance*side_length
             self.display_info(side_length, shape, distance)
+            print("density: ", blob.density())
+            print("solidity: ", blob.solidity())
 
             return True
         return False
 
     def display_info(self, side_length, shape, distance):
-        side_length = str(side_length)
+        side_length = str(side_length/10)
         distance = str(distance)
         lcd.fill_screen()
-        lcd.write_string(0, 0, "side length: " + "35")
+        if shape == "circle":
+            lcd.write_string(0, 0, "diameter: " + side_length + " cm")
+        else:
+            lcd.write_string(0, 0, "side length: " + side_length + " cm")
         lcd.write_string(0, 1, "shape: " + shape)
-        lcd.write_string(0, 2, "distance: " + distance)
+        lcd.write_string(0, 2, "distance: " + distance + " m")
         print("shape:", shape, "_____", "side_length:", side_length, "_____", "distance:", distance)
 
     def find_white_box1(self):
@@ -685,7 +691,7 @@ class MyEye():
                 i -= step
             if i < right_max:
                 break
-    
+
     def tracking_white_board_by_using_distance_sensor3(self):
         horizontal_servo.angle(30)
         step = 10
@@ -696,8 +702,8 @@ class MyEye():
             distance_sensor.measure_once()
             distance = distance_sensor.read_result()
             if distance:
-                #print(distance)
-                if distance>3.1:
+                # print(distance)
+                if distance > 3.1:
                     a = a - step
                     horizontal_servo.angle(a)
                     time.sleep(500)
@@ -712,8 +718,8 @@ class MyEye():
             distance_sensor.measure_once()
             distance = distance_sensor.read_result()
             if distance:
-                #print(distance)
-                if distance <3.1:
+                # print(distance)
+                if distance < 3.1:
 
                     a = a + step
                     horizontal_servo.angle(a)
@@ -728,7 +734,7 @@ class MyEye():
             distance_sensor.measure_once()
             distance = distance_sensor.read_result()
             if distance:
-                #print(distance)
+                # print(distance)
                 if distance > 3.1:
                     a = a - step
                     horizontal_servo.angle(a)
@@ -741,8 +747,8 @@ class MyEye():
             distance_sensor.measure_once()
             distance = distance_sensor.read_result()
             if distance:
-                #print(distance)
-                if distance <3.1:
+                # print(distance)
+                if distance < 3.1:
 
                     a = a + step
                     horizontal_servo.angle(a)
@@ -755,7 +761,7 @@ class MyEye():
             distance_sensor.measure_once()
             distance = distance_sensor.read_result()
             if distance:
-                #print(distance)
+                # print(distance)
                 if distance > 3.1:
                     a = a - step
                     horizontal_servo.angle(a)
@@ -770,8 +776,8 @@ class MyEye():
             distance_sensor.measure_once()
             distance = distance_sensor.read_result()
             if distance:
-                #print(distance)
-                if distance>3.1:
+                # print(distance)
+                if distance > 3.1:
                     a = a + step
                     horizontal_servo.angle(a)
                     time.sleep(500)
@@ -786,8 +792,8 @@ class MyEye():
             distance_sensor.measure_once()
             distance = distance_sensor.read_result()
             if distance:
-                #print(distance)
-                if distance <3.1:
+                # print(distance)
+                if distance < 3.1:
 
                     a = a - step
                     horizontal_servo.angle(a)
@@ -802,7 +808,7 @@ class MyEye():
             distance_sensor.measure_once()
             distance = distance_sensor.read_result()
             if distance:
-                #print(distance)
+                # print(distance)
                 if distance > 3.1:
                     a = a + step
                     horizontal_servo.angle(a)
@@ -815,8 +821,8 @@ class MyEye():
             distance_sensor.measure_once()
             distance = distance_sensor.read_result()
             if distance:
-                #print(distance)
-                if distance <3.1:
+                # print(distance)
+                if distance < 3.1:
 
                     a = a - step
                     horizontal_servo.angle(a)
@@ -824,13 +830,12 @@ class MyEye():
                 else:
                     break
 
-
         step = step*0.5
         while 1:
             distance_sensor.measure_once()
             distance = distance_sensor.read_result()
             if distance:
-                #print(distance)
+                # print(distance)
                 if distance > 3.1:
                     a = a + step
                     horizontal_servo.angle(a)
@@ -843,28 +848,53 @@ class MyEye():
         b = (left+right)/2 + 1
         for i in range(2000):
             horizontal_servo.angle(b)
-    
+
     def show_sound_and_light_once(self):
         self.led_and_bee.off()
         sleep_ms(1000)
         self.led_and_bee.on()
         sleep_ms(1000)
-    
+
     def recognize_ball(self):
         """
         basketball: 篮球
         football: 足球
         volleyball: 排球
         """
-        print("recognize_ball")
-        lcd.write_string(0, 3, "type:" + "volleyball" + " , " + "distance:"+ "2.762")
+        self.update_img()
+        lcd.fill_screen()
+        shape = None
+        while shape == None:
+            shape, blob = self.get_shape_and_blob()
+            if shape:
+                shape, x, y, side_length = self.parse_blob(shape, blob)
 
+                print("density: ", blob.density())
+                print("solidity: ", blob.solidity())
+
+                solidity = blob.solidity()
+                if solidity >= 0.7:
+                    type_ = "basketball"
+                elif 0.5 < solidity < 0.7:
+                    type_ = "volleyball"
+                elif solidity <= 0.5:
+                    type_ = "football"
+                
+                distance = None
+                while distance == None:
+                    distance_sensor.measure_once()
+                    distance = distance_sensor.read_result()
+                print("distance: ", distance)
+
+                lcd.write_string(0, 2, "distance: " + str(distance) + " m")
+                lcd.write_string(0, 3, "type: " + type_)
+                return True
+        return False
 
 
 #######################
 # The buttons
 #######################
-
 BUTTON_STATE = 0
 TASK_3 = False
 
@@ -876,20 +906,26 @@ def ResetButtonState():
 
 def Button1Callback(e):
     global BUTTON_STATE
-    BUTTON_STATE = 1
+    sleep_ms(500)
+    if (Pin('P2').value()):
+        BUTTON_STATE = 1
 
 
 def Button2Callback(e):
     global BUTTON_STATE, TASK_3
-    BUTTON_STATE = 2
-    if TASK_3:
-        TASK_3 = False
-    else:
-        TASK_3 = True
+    sleep_ms(500)
+    if (Pin('P6').value()):
+        BUTTON_STATE = 2
 
+def Button3Callback(e):
+    global BUTTON_STATE, TASK_3
+    sleep_ms(500)
+    if (Pin('P8').value()):
+        BUTTON_STATE = 3
 
 ExtInt(Pin('P2'), ExtInt.IRQ_RISING, Pin.PULL_UP, Button1Callback)
-ExtInt(Pin('P3'), ExtInt.IRQ_RISING, Pin.PULL_UP, Button2Callback)
+ExtInt(Pin('P6'), ExtInt.IRQ_RISING, Pin.PULL_UP, Button2Callback)
+ExtInt(Pin('P8'), ExtInt.IRQ_RISING, Pin.PULL_UP, Button3Callback)
 
 #######################
 # The task manager
@@ -900,49 +936,20 @@ class TaskManager():
     def __init__(self) -> None:
         self.myEye = MyEye()
         self.done = False
-
+    
     def task1or2(self):
+        distance_sensor.close_laser()
         print("task1or2 start...")
-        self.myEye.tracking_white_board_by_using_distance_sensor3()
-        print("white board tracing finished...")
+        #self.myEye.tracking_white_board_by_using_distance_sensor3()
+        #print("white board tracing finished...")
 
         if self.myEye.do_a_fixed_detection():
             taskManager.done = True
             self.myEye.show_sound_and_light_once()
         print("task1or2 finished")
-    
-    def task3(self):
-        print("task3 start...")
 
-        self.myEye.tracking_white_board_by_using_distance_sensor3()
-        print("white board tracing finished...")
-
-        for _ in range(10):
-            self.myEye.tracking_an_object()
-
-        if self.myEye.do_a_fixed_detection():
-            distance_sensor.open_laser()
-            taskManager.done = True
-            self.myEye.show_sound_and_light_once()
-
-    def task4(self):
-        print("task4 start...")
-
-        self.myEye.tracking_white_board_by_using_distance_sensor3()
-        print("white board tracing finished...")
-
-        for _ in range(10):
-            self.myEye.tracking_an_object()
-        
-        if self.myEye.do_a_fixed_detection():
-            distance_sensor.open_laser()
-
-            self.myEye.recognize_ball()
-
-            taskManager.done = True
-            self.myEye.show_sound_and_light_once()
-    
     def task3or4(self):
+        distance_sensor.close_laser()
         print("task3or4 start...")
 
         if TASK_3:
@@ -952,13 +959,54 @@ class TaskManager():
 
         print("task3or4 finished")
 
+    def task3(self):
+        distance_sensor.close_laser()
+        print("task3 start...")
+
+        self.myEye.tracking_white_board_by_using_distance_sensor3()
+        print("white board tracing finished...")
+
+        #for _ in range(10):
+        #    self.myEye.tracking_an_object()
+
+        if self.myEye.do_a_fixed_detection():
+            distance_sensor.open_laser()
+            taskManager.done = True
+            self.myEye.show_sound_and_light_once()
+
+    def task4(self):
+        distance_sensor.close_laser()
+        print("task4 start...")
+
+        self.myEye.tracking_white_board_by_using_distance_sensor3()
+        print("white board tracing finished...")
+
+        #for _ in range(10):
+        #    self.myEye.tracking_an_object()
+
+        if self.myEye.do_a_fixed_detection():
+            distance_sensor.open_laser()
+
+            self.myEye.recognize_ball()
+
+            taskManager.done = True
+            self.myEye.show_sound_and_light_once()
+
+
 
 taskManager = TaskManager()
+distance_sensor.open_laser()
+taskManager.myEye.show_sound_and_light_once()
 while 1:
     if BUTTON_STATE == 1:
         taskManager.task1or2()
-    elif BUTTON_STATE == 2:
-        taskManager.task3or4()
+
+    if BUTTON_STATE == 2:
+        taskManager.task3()
+
+    if BUTTON_STATE == 3:
+        taskManager.task4()
 
     if (taskManager.done):
         ResetButtonState()
+        taskManager.done = False

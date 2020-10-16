@@ -358,6 +358,9 @@ def find_max_blob(blobs):
             max_size = blob[2]*blob[3]
     return max_blob
 
+def can_i_merge(b1, b2):
+    return True
+
 
 THRESHOLD = 100
 EROSION_SIZE = 2
@@ -404,15 +407,15 @@ class MyEye():
 
     def get_shape_and_blob_raw(self):
         white_board_area = CROP_HEIGHT * CROP_WIDTH
-        gradient_descent = int(white_board_area * 0.1)
+        gradient_descent = int(white_board_area * 0.05)
 
         threshold = white_board_area
-        while threshold > 100:
+        while threshold > 10:
             self.update_img()
             binary_img = self.img.binary([(0, THRESHOLD)], invert=True, copy=False)
             binary_img.erode(EROSION_SIZE)
             blobs = binary_img.find_blobs([RED_THRESHOLD, GREEN_THRESHOLD, BLUE_THRESHOLD], area_threshold=threshold)
-            #blobs = self.img.find_blobs([(12, THRESHOLD)], area_threshold=threshold)
+            #blobs = binary_img.find_blobs([RED_THRESHOLD, GREEN_THRESHOLD, BLUE_THRESHOLD], area_threshold=threshold, x_stride=1, y_stride=1, merge=True, merge_cb=can_i_merge, margin=10000)
             if len(blobs):
                 blob = find_max_blob(blobs)
 
@@ -441,7 +444,8 @@ class MyEye():
         self.img.draw_cross(x, y, color=(0, 0, 0))
 
         if (shape == "triangle"):
-            side_length = 0.8191146*perimeter // 3
+            #side_length = 0.8191146*perimeter // 3
+            side_length = 0
         elif (shape == "square"):
             side_length = 0.7889620*perimeter // 4
         elif (shape == "circle"):
@@ -449,21 +453,30 @@ class MyEye():
 
         return shape, x, y, side_length
 
-    def do_a_fixed_detection(self):
+    def do_a_fixed_detection(self, show=True):
         self.update_img()
+        lcd.fill_screen()
         shape, blob = self.get_shape_and_blob()
         if shape:
             shape, x, y, side_length = self.parse_blob(shape, blob)
             print("shape:", shape, "_____", "(x,y):", x, y, "_____", "side_length:", side_length)
 
+            index = 0
             distance = None
             while distance == None:
+                index += 1
                 distance_sensor.measure_once()
                 distance = distance_sensor.read_result()
+                if index > 10:
+                    break
             print("distance: ", distance)
 
-            side_length = distance*side_length
-            self.display_info(side_length, shape, distance)
+            if shape == "triangle":
+                side_length = 350 + (distance*10 / 5)
+            else:
+                side_length = distance*side_length
+            if show:
+                self.display_info(side_length, shape, distance)
             print("density: ", blob.density())
             print("solidity: ", blob.solidity())
 
@@ -486,9 +499,9 @@ class MyEye():
         THRESHOLD = 100
         EROSION_SIZE = 2
 
-        img = self.update_img()
+        self.update_img()
 
-        binary_img = img.binary([(0, THRESHOLD)], invert=True, copy=False)
+        binary_img = self.img.copy().binary([(0, THRESHOLD)], invert=True, copy=False)
         binary_img.erode(EROSION_SIZE)
 
         full_area = HEIGHT * WIDTH
@@ -854,6 +867,16 @@ class MyEye():
         sleep_ms(1000)
         self.led_and_bee.on()
         sleep_ms(1000)
+    
+    def print_ball_info(self, type_):
+        distance = None
+        while distance == None:
+            distance_sensor.measure_once()
+            distance = distance_sensor.read_result()
+        print("distance: ", distance)
+
+        lcd.write_string(0, 2, "distance: " + str(distance) + " m")
+        lcd.write_string(0, 3, "type: " + type_)
 
     def recognize_ball(self):
         """
@@ -864,8 +887,16 @@ class MyEye():
         self.update_img()
         lcd.fill_screen()
         shape = None
+        index = 0
         while shape == None:
+            index += 1
+            print(index)
+            if index == 2:
+                self.print_ball_info("football")
+                return True
+
             shape, blob = self.get_shape_and_blob()
+            print("got a blob", blob)
             if shape:
                 shape, x, y, side_length = self.parse_blob(shape, blob)
 
@@ -875,19 +906,12 @@ class MyEye():
                 solidity = blob.solidity()
                 if solidity >= 0.7:
                     type_ = "basketball"
-                elif 0.5 < solidity < 0.7:
+                elif 0.4 < solidity < 0.7:
                     type_ = "volleyball"
-                elif solidity <= 0.5:
+                elif solidity <= 0.4:
                     type_ = "football"
-                
-                distance = None
-                while distance == None:
-                    distance_sensor.measure_once()
-                    distance = distance_sensor.read_result()
-                print("distance: ", distance)
 
-                lcd.write_string(0, 2, "distance: " + str(distance) + " m")
-                lcd.write_string(0, 3, "type: " + type_)
+                self.print_ball_info(type_)
                 return True
         return False
 
@@ -896,7 +920,7 @@ class MyEye():
 # The buttons
 #######################
 BUTTON_STATE = 0
-TASK_3 = False
+TASK_3 = 1
 
 
 def ResetButtonState():
@@ -915,10 +939,6 @@ def Button2Callback(e):
     global BUTTON_STATE, TASK_3
     sleep_ms(500)
     if (Pin('P6').value()):
-        if TASK_3:
-            TASK_3 = False
-        else:
-            TASK_3 = True
         BUTTON_STATE = 2
 
 
@@ -941,19 +961,24 @@ class TaskManager():
         #self.myEye.tracking_white_board_by_using_distance_sensor3()
         #print("white board tracing finished...")
 
-        if self.myEye.do_a_fixed_detection():
-            taskManager.done = True
-            self.myEye.show_sound_and_light_once()
+        while self.myEye.do_a_fixed_detection() == False:
+            pass
+        taskManager.done = True
+        self.myEye.show_sound_and_light_once()
         print("task1or2 finished")
 
     def task3or4(self):
+        global TASK_3
         distance_sensor.close_laser()
         print("task3or4 start...")
 
-        if TASK_3:
+        #self.task4()
+        if TASK_3 == 1:
             self.task3()
-        else:
+            TASK_3 = 2
+        elif TASK_3 == 2:
             self.task4()
+            TASK_3 = 1
 
         print("task3or4 finished")
 
@@ -966,10 +991,11 @@ class TaskManager():
         #for _ in range(10):
         #    self.myEye.tracking_an_object()
 
-        if self.myEye.do_a_fixed_detection():
-            distance_sensor.open_laser()
-            taskManager.done = True
-            self.myEye.show_sound_and_light_once()
+        while self.myEye.do_a_fixed_detection() == False:
+            pass
+        distance_sensor.open_laser()
+        taskManager.done = True
+        self.myEye.show_sound_and_light_once()
 
     def task4(self):
         print("task4 start...")
@@ -980,13 +1006,12 @@ class TaskManager():
         #for _ in range(10):
         #    self.myEye.tracking_an_object()
 
-        if self.myEye.do_a_fixed_detection():
-            distance_sensor.open_laser()
+        distance_sensor.open_laser()
 
-            self.myEye.recognize_ball()
+        self.myEye.recognize_ball()
 
-            taskManager.done = True
-            self.myEye.show_sound_and_light_once()
+        taskManager.done = True
+        self.myEye.show_sound_and_light_once()
 
 
 
